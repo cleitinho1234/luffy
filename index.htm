@@ -3,143 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Camera App Profissional</title>
-
-<style>
-body {
-  margin: 0;
-  font-family: Arial;
-  background: #111;
-  color: white;
-  text-align: center;
-}
-
-#telaInicial {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: #000000e0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-}
-
-button {
-  padding: 20px 40px;
-  font-size: 24px;
-  border: none;
-  border-radius: 12px;
-  background: #22c55e;
-  color: white;
-  cursor: pointer;
-}
-
-video {
-  width: 100vw;
-  height: 100vh;
-  object-fit: cover;
-}
-
-#fotos {
-  position: fixed;
-  right: 10px;
-  bottom: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-#fotos img {
-  width: 80px;
-  border-radius: 8px;
-  border: 2px solid white;
-}
-</style>
+<title>Teste Câmera</title>
 </head>
-
 <body>
-
-<!-- Tela inicial limpa -->
-<div id="telaInicial">
-  <h1>Bem-vindo!</h1>
-  <p>Clique abaixo para entrar e ativar a câmera</p>
-  <button id="btnEntrar">Entrar / Continuar</button>
-</div>
-
-<!-- Vídeo da câmera -->
-<video id="video" autoplay playsinline></video>
-
-<!-- Miniaturas das fotos -->
-<div id="fotos"></div>
+<h1>Teste de câmera</h1>
+<button id="btn">Entrar / Continuar</button>
+<video id="video" autoplay playsinline width="400"></video>
 
 <script>
-const video = document.getElementById('video');
-const btn = document.getElementById('btnEntrar');
-const telaInicial = document.getElementById('telaInicial');
-const fotosDiv = document.getElementById('fotos');
+const btn = document.getElementById("btn");
+const video = document.getElementById("video");
 
-btn.addEventListener("click", iniciar);
-
-async function iniciar() {
-  telaInicial.style.display = "none";
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-    video.srcObject = stream;
-
-    // Espera o vídeo iniciar
-    video.onloadedmetadata = () => {
-      video.play();
-      setTimeout(capturarFotos, 1000); // começa tirando fotos 1s depois
-    };
-
-  } catch (err) {
-    alert("Erro ao acessar câmera: " + err.message);
-    console.log(err);
-  }
-}
-
-// Captura 4 fotos automaticamente
-function capturarFotos() {
-  let count = 0;
-  const intervalo = setInterval(() => {
-    if (count >= 4) {
-      clearInterval(intervalo);
-      return;
+btn.addEventListener("click", async () => {
+    console.log("Botão clicado"); // confirma o clique
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+        video.srcObject = stream;
+        console.log("Câmera ligada");
+    } catch(e) {
+        console.error("Erro: ", e);
+        alert("Erro ao acessar a câmera: " + e.message);
     }
-    capturar();
-    count++;
-  }, 1000);
-}
-
-// Captura uma foto e mostra miniatura
-function capturar() {
-  const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(video, 0, 0);
-
-  const data = canvas.toDataURL("image/png");
-
-  // Mostra miniatura na tela
-  const img = document.createElement("img");
-  img.src = data;
-  fotosDiv.appendChild(img);
-
-  // Para enviar pro servidor, descomente e configure seu endpoint:
-  /*
-  fetch("https://SEU-SERVIDOR/upload", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ imagem: data })
-  });
-  */
-}
+});
 </script>
-
 </body>
 </html>

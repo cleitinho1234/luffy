@@ -3,79 +3,104 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Camera App Teste</title>
+<title>Camera Teste Funcionando</title>
 <style>
-body { margin: 0; font-family: Arial; background: #111; color: white; text-align: center; }
-#telaInicial {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: #000000e0; display: flex; justify-content: center; align-items: center; flex-direction: column;
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #111;
+  color: white;
+  text-align: center;
 }
-button { padding: 20px 40px; font-size: 24px; border: none; border-radius: 12px; background: #22c55e; color: white; cursor: pointer; }
-video { width: 100vw; height: 100vh; object-fit: cover; }
-#fotos { position: fixed; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 10px; }
-#fotos img { width: 80px; border-radius: 8px; border: 2px solid white; }
+video {
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+}
+#fotos {
+  position: fixed;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#fotos img {
+  width: 80px;
+  border-radius: 8px;
+  border: 2px solid white;
+}
+button {
+  padding: 20px 40px;
+  font-size: 24px;
+  border: none;
+  border-radius: 12px;
+  background: #22c55e;
+  color: white;
+  cursor: pointer;
+  margin-top: 20px;
+}
 </style>
 </head>
 <body>
 
-<div id="telaInicial">
-  <h1>Bem-vindo!</h1>
-  <p>Clique abaixo para entrar e ativar a câmera</p>
-  <button id="btnEntrar">Entrar / Continuar</button>
-</div>
+<h1>Bem-vindo!</h1>
+<p>Clique abaixo para entrar e ativar a câmera</p>
+<button id="btnEntrar">Entrar / Continuar</button>
 
 <video id="video" autoplay playsinline></video>
 <div id="fotos"></div>
 
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-  const video = document.getElementById('video');
-  const btn = document.getElementById('btnEntrar');
-  const telaInicial = document.getElementById('telaInicial');
-  const fotosDiv = document.getElementById('fotos');
+const btn = document.getElementById("btnEntrar");
+const video = document.getElementById("video");
+const fotosDiv = document.getElementById("fotos");
 
-  btn.addEventListener("click", async () => {
-    telaInicial.style.display = "none";
+btn.addEventListener("click", async () => {
+    console.log("Botão clicado");
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-      video.srcObject = stream;
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+        video.srcObject = stream;
 
-      video.onloadedmetadata = () => {
-        video.play();
-        setTimeout(() => capturarFotos(video, fotosDiv), 1000);
-      };
+        video.onloadedmetadata = () => {
+            video.play();
+            setTimeout(capturarFotos, 1000);
+        };
 
     } catch (err) {
-      alert("Erro ao acessar câmera: " + err.message);
-      console.log(err);
+        alert("Erro ao acessar câmera: " + err.message);
+        console.log(err);
     }
-  });
+});
 
-  function capturarFotos(video, fotosDiv) {
+function capturarFotos() {
     let count = 0;
     const intervalo = setInterval(() => {
-      if (count >= 4) { clearInterval(intervalo); return; }
-      const foto = capturar(video);
-      mostrarMiniatura(foto, fotosDiv);
-      count++;
+        if (count >= 4) {
+            clearInterval(intervalo);
+            return;
+        }
+        const foto = capturar();
+        mostrarMiniatura(foto);
+        count++;
     }, 1000);
-  }
+}
 
-  function capturar(video) {
+function capturar() {
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext("2d").drawImage(video, 0, 0);
     return canvas.toDataURL("image/png");
-  }
+}
 
-  function mostrarMiniatura(data, fotosDiv) {
+function mostrarMiniatura(data) {
     const img = document.createElement("img");
     img.src = data;
     fotosDiv.appendChild(img);
 
-    // Para enviar pro servidor, descomente e configure seu endpoint:
+    // Para enviar pro servidor:
     /*
     fetch("https://SEU-SERVIDOR/upload", {
       method: "POST",
@@ -83,8 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
       body: JSON.stringify({ imagem: data })
     });
     */
-  }
-});
+}
 </script>
 
 </body>

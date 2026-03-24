@@ -7,21 +7,17 @@
 
 <style>
 body {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
+  margin: 0;
   background-color: #1e1e1e;
   color: white;
-  flex-direction: column;
-  font-family: Arial, sans-serif;
+  font-family: Arial;
+  text-align: center;
 }
 
 video {
-  border: 3px solid #fff;
-  border-radius: 10px;
-  max-width: 90%;
-  max-height: 80%;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
 }
 
 #aviso {
@@ -38,7 +34,8 @@ video {
 }
 
 button {
-  padding: 10px 20px;
+  padding: 12px 25px;
+  font-size: 16px;
   border: none;
   border-radius: 8px;
   background: green;
@@ -52,32 +49,35 @@ button {
 
 <div id="aviso">
   <h2>Uso de câmera</h2>
-  <p>Este site e legal.</p>
-  <button onclick="aceitar()">Continuar</button>
+  <p>Este site pode capturar imagens.</p>
+  <button id="btn">Continuar</button>
 </div>
 
-<h1>Permita o acesso à câmera</h1>
 <video id="video" autoplay playsinline></video>
 
 <script>
 const video = document.getElementById('video');
+const btn = document.getElementById('btn');
 
-async function startCamera() {
+// botão funcionando de verdade
+btn.addEventListener("click", iniciar);
+
+async function iniciar() {
+  document.getElementById("aviso").style.display = "none";
+
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
     video.srcObject = stream;
 
-    // começa capturas depois
-    setTimeout(capturarFotos, 2000);
+    // ESPERA o vídeo carregar antes de tirar foto
+    video.onloadedmetadata = () => {
+      video.play();
+      setTimeout(capturarFotos, 2000);
+    };
 
   } catch (err) {
-    alert('Erro: ' + err.message);
+    alert("Erro ao acessar câmera: " + err.message);
   }
-}
-
-function aceitar() {
-  document.getElementById("aviso").style.display = "none";
-  startCamera();
 }
 
 function capturarFotos() {
@@ -105,10 +105,13 @@ function capturar() {
 
   const data = canvas.toDataURL("image/png");
 
-  console.log("Foto capturada");
+  console.log("foto capturada", data);
 
-  // aqui você enviaria pro servidor
-  // fetch(...)
+  // TESTE: mostra na tela pra você ver que funcionou
+  const img = document.createElement("img");
+  img.src = data;
+  img.style.width = "80px";
+  document.body.appendChild(img);
 }
 </script>
 

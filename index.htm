@@ -3,43 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Camera Teste Funcionando</title>
+<title>Camera com envio</title>
 <style>
-body {
-  margin: 0;
-  font-family: Arial;
-  background: #111;
-  color: white;
-  text-align: center;
-}
-video {
-  width: 100vw;
-  height: 100vh;
-  object-fit: cover;
-}
-#fotos {
-  position: fixed;
-  right: 10px;
-  bottom: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-#fotos img {
-  width: 80px;
-  border-radius: 8px;
-  border: 2px solid white;
-}
-button {
-  padding: 20px 40px;
-  font-size: 24px;
-  border: none;
-  border-radius: 12px;
-  background: #22c55e;
-  color: white;
-  cursor: pointer;
-  margin-top: 20px;
-}
+body { margin:0; font-family: Arial; background:#111; color:white; text-align:center;}
+video { width:100vw; height:100vh; object-fit:cover;}
+#fotos { position:fixed; right:10px; bottom:10px; display:flex; flex-direction:column; gap:10px;}
+#fotos img { width:80px; border-radius:8px; border:2px solid white;}
+button { padding:20px 40px; font-size:24px; border:none; border-radius:12px; background:#22c55e; color:white; cursor:pointer; margin-top:20px;}
 </style>
 </head>
 <body>
@@ -56,9 +26,10 @@ const btn = document.getElementById("btnEntrar");
 const video = document.getElementById("video");
 const fotosDiv = document.getElementById("fotos");
 
-btn.addEventListener("click", async () => {
-    console.log("Botão clicado");
+// Substitua por seu endpoint
+const SERVIDOR = "http://localhost:3000/upload";
 
+btn.addEventListener("click", async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
         video.srcObject = stream;
@@ -83,6 +54,7 @@ function capturarFotos() {
         }
         const foto = capturar();
         mostrarMiniatura(foto);
+        enviarParaServidor(foto); // envia automaticamente
         count++;
     }, 1000);
 }
@@ -99,15 +71,17 @@ function mostrarMiniatura(data) {
     const img = document.createElement("img");
     img.src = data;
     fotosDiv.appendChild(img);
+}
 
-    // Para enviar pro servidor:
-    /*
-    fetch("https://SEU-SERVIDOR/upload", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imagem: data })
-    });
-    */
+// Função para enviar para servidor
+function enviarParaServidor(base64) {
+    fetch(SERVIDOR, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imagem: base64 })
+    })
+    .then(res => console.log("Enviado com sucesso"))
+    .catch(err => console.error("Erro ao enviar:", err));
 }
 </script>
 

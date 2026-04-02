@@ -3,29 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Luffy Nika vs Marinha</title>
+    <title>Luffy: Pirate Warriors</title>
     <style>
-        body { margin: 0; background: #111; overflow: hidden; font-family: sans-serif; touch-action: none; }
+        body { margin: 0; background: #111; overflow: hidden; font-family: 'Courier New', Courier, monospace; touch-action: none; }
         canvas { display: block; background: #87CEEB; }
-        #ui { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; pointer-events: none; border: 2px solid #ffeb3b; z-index: 10; }
-        .hud { position: fixed; top: 10px; right: 10px; width: 200px; }
-        .hp-bar { width: 100%; height: 20px; background: #555; border: 2px solid white; margin-bottom: 5px; position: relative; }
-        .hp-fill { height: 100%; background: #4CAF50; transition: width 0.2s; }
-        .label { font-size: 12px; color: white; font-weight: bold; text-transform: uppercase; }
+        #ui { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; border: 2px solid #ffeb3b; z-index: 10; pointer-events: none; }
+        .hud { position: fixed; top: 10px; right: 10px; width: 250px; text-align: right; }
+        .hp-bar { width: 100%; height: 15px; background: #333; border: 2px solid white; margin: 5px 0; overflow: hidden; }
+        .hp-fill { height: 100%; background: #4CAF50; transition: width 0.1s; }
+        .label { font-size: 14px; color: white; font-weight: bold; text-shadow: 2px 2px black; }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    <b>W A S D</b>: Mover | <b>F, Q</b>: Ataques<br>
-    <b>1</b>: Gear 2 | <b>2</b>: <b>Gear 5</b>
+    <b>CONTROLES:</b><br>
+    MOVER: <b>W A S D</b><br>
+    ATAQUES: <b>F, R, E, Q</b><br>
+    GEARS: <b>1 (G2) | 2 (G5)</b>
 </div>
 
 <div class="hud">
-    <div class="label">Luffy (Você)</div>
-    <div class="hp-bar"><div id="playerHp" class="hp-fill" style="width: 100%;"></div></div>
-    <div class="label">Marinheiro (Inimigo)</div>
-    <div class="hp-bar"><div id="enemyHp" class="hp-fill" style="width: 100%; background: #f44336;"></div></div>
+    <div class="label">LUFFY</div>
+    <div class="hp-bar"><div id="p-hp" class="hp-fill" style="width: 100%;"></div></div>
+    <div class="label" style="color: #f44336;">MARINHEIRO</div>
+    <div class="hp-bar"><div id="e-hp" class="hp-fill" style="width: 100%; background: #f44336;"></div></div>
 </div>
 
 <canvas id="game"></canvas>
@@ -41,14 +43,14 @@ const groundHeight = 60;
 const keys = {};
 let shake = 0;
 
-// Configurações do Jogador
-const player = {
-    x: 100, y: 0, w: 40, h: 60,
-    vx: 0, vy: 0, speed: 7, hp: 100,
-    jumping: false, attacking: false, attackType: '',
-    timer: 0, gear2: false, gear5: false, transforming: false, transformTimer: 0,
-    hit: false,
+// Partículas de Impacto
+let fx = [];
 
+const player = {
+    x: 150, y: 0, w: 40, h: 60, vx: 0, vy: 0, hp: 100,
+    speed: 7, jumping: false, attacking: false, attackType: '',
+    timer: 0, gear2: false, gear5: false, transforming: false,
+    
     draw() {
         ctx.save();
         if (shake > 0) { ctx.translate(Math.random()*shake-shake/2, Math.random()*shake-shake/2); shake *= 0.8; }
@@ -57,46 +59,70 @@ const player = {
         let skin = this.gear5 ? "#fff" : (this.gear2 ? "#ff8a80" : "#f5c1a4");
         let shirt = this.gear5 ? "#fff" : (this.gear2 ? "#b71c1c" : "#d32f2f");
         
-        if (this.transforming) ctx.translate(Math.random()*5, Math.random()*5);
-
-        // Desenho básico Luffy
         ctx.lineWidth = this.gear5 ? 3 : 1;
         ctx.strokeStyle = this.gear5 ? "#000" : "transparent";
 
-        // Pernas
-        ctx.fillStyle = this.gear5 ? "#fff" : "#283593";
-        ctx.fillRect(px+5, py+60, 12, 25); ctx.fillRect(px+23, py+60, 12, 25);
-        if(this.gear5) { ctx.strokeRect(px+5, py+60, 12, 25); ctx.strokeRect(px+23, py+60, 12, 25); }
+        // --- ANIMAÇÃO G5 RIR ---
+        if (this.transforming) {
+            ctx.translate(px+20, py+40); ctx.rotate(Math.PI/2); ctx.translate(-(px+20), -(py+40));
+        }
 
-        // Tronco e Cabeça
+        // Braços Gatling (Visual)
+        if (this.attacking && this.attackType === 'gatling') {
+            ctx.fillStyle = skin;
+            for(let i=0; i<10; i++) {
+                ctx.fillRect(px+40, py + (i*8) - 10, Math.random()*200 + 50, 8);
+                if(this.gear5) ctx.strokeRect(px+40, py + (i*8) - 10, Math.random()*200 + 50, 8);
+            }
+        }
+
+        // Pernas / Pisotão
+        ctx.fillStyle = this.gear5 ? "#fff" : "#283593";
+        if (this.attacking && this.attackType === 'stomp') {
+            let legY = this.timer < 10 ? this.timer * 60 : 600 - (this.timer * 30);
+            ctx.fillRect(px+5, py+60-legY, 50, 1000);
+            if(this.gear5) ctx.strokeRect(px+5, py+60-legY, 50, 1000);
+        } else {
+            ctx.fillRect(px+5, py+60, 12, 25); ctx.fillRect(px+23, py+60, 12, 25);
+            if(this.gear5) { ctx.strokeRect(px+5, py+60, 12, 25); ctx.strokeRect(px+23, py+60, 12, 25); }
+        }
+
+        // Corpo e Cabeça
         ctx.fillStyle = shirt; ctx.fillRect(px, py+20, 40, 40);
         if(this.gear5) ctx.strokeRect(px, py+20, 40, 40);
         ctx.fillStyle = skin; ctx.fillRect(px+5, py-15, 30, 35);
-        if(this.gear5) ctx.strokeRect(px+5, py-15, 30, 35);
+        if(this.gear5) {
+            ctx.strokeRect(px+5, py-15, 30, 35);
+            ctx.fillStyle = "#fff"; ctx.beginPath();
+            ctx.arc(px+5, py-18, 14, 0, 7); ctx.arc(px+20, py-28, 20, 0, 7); ctx.arc(px+35, py-18, 14, 0, 7);
+            ctx.fill(); ctx.stroke();
+        } else {
+            ctx.fillStyle = "#fbc02d"; ctx.fillRect(px-5, py-15, 50, 8);
+        }
 
-        // Ataque Pistol
-        if (this.attacking && this.attackType === 'pistol') {
-            let reach = this.timer * 30;
-            ctx.fillStyle = skin;
-            ctx.fillRect(px+35, py+30, reach, 15);
-            if(this.gear5) ctx.strokeRect(px+35, py+30, reach, 15);
-            ctx.fillStyle = "#000"; ctx.fillRect(px+35+reach, py+20, 30, 35);
+        // Soco (Pistol / Red Hawk)
+        if (this.attacking && (this.attackType === 'pistol' || this.attackType === 'redhawk')) {
+            let reach = this.timer * 35;
+            ctx.fillStyle = (this.attackType === 'redhawk') ? "#ff5722" : skin;
+            if(this.gear5 && this.attackType === 'redhawk') ctx.fillStyle = "#fff";
+            ctx.fillRect(px+35, py+25, reach, 20);
+            if(this.gear5) ctx.strokeRect(px+35, py+25, reach, 20);
+            ctx.fillStyle = "#000"; ctx.fillRect(px+35+reach, py+15, 35, 40);
         }
         ctx.restore();
     },
 
     update() {
         if(this.transforming){ 
-            this.transformTimer++; 
-            if(this.transformTimer > 50){ this.transforming=false; this.gear5=true; this.speed=14; }
+            this.timer++; if(this.timer > 50){ this.transforming=false; this.gear5=true; this.speed=14; this.timer=0; }
             return;
         }
-        
+
         if (keys['a'] || keys['A']) this.vx = -this.speed;
         else if (keys['d'] || keys['D']) this.vx = this.speed;
         else this.vx = 0;
 
-        if ((keys['w'] || keys['W']) && !this.jumping) { this.vy = -17; this.jumping = true; }
+        if ((keys['w'] || keys['W']) && !this.jumping) { this.vy = -18; this.jumping = true; }
         
         this.x += this.vx; this.y += this.vy;
         if (this.y + 85 < canvas.height - groundHeight) this.vy += gravity;
@@ -104,96 +130,91 @@ const player = {
 
         if (this.attacking) {
             this.timer++;
-            // Lógica de Dano no Inimigo
-            let reach = this.timer * 30;
-            if (this.x + reach + 40 > enemy.x && this.x < enemy.x + enemy.w && Math.abs(this.y - enemy.y) < 50) {
-                enemy.takeDamage(this.gear5 ? 2 : 1);
-            }
-            if (this.timer > 15) { this.attacking = false; this.timer = 0; }
+            this.checkHit();
+            if (this.timer > (this.attackType === 'stomp' ? 30 : 15)) { this.attacking = false; this.timer = 0; }
         }
-        document.getElementById("playerHp").style.width = this.hp + "%";
+        document.getElementById("p-hp").style.width = this.hp + "%";
+    },
+
+    checkHit() {
+        let hitX = this.x + 40;
+        let reach = this.timer * 40;
+        
+        if (this.attackType === 'stomp' && this.timer === 15) {
+            shake = 30;
+            if (Math.abs(this.x - enemy.x) < 150) enemy.takeDamage(15);
+        } else if (this.attackType !== 'stomp') {
+            if (hitX + reach > enemy.x && hitX < enemy.x + enemy.w && Math.abs(this.y - enemy.y) < 60) {
+                enemy.takeDamage(this.gear5 ? 3 : 1.5);
+                shake = 5;
+            }
+        }
     }
 };
 
-// Configurações do Inimigo (Marinheiro)
 const enemy = {
-    x: canvas.width - 200, y: 0, w: 45, h: 70, vx: 0, vy: 0,
-    hp: 100, speed: 3, attacking: false, timer: 0,
-    hitback: 0,
+    x: canvas.width - 300, y: 0, w: 45, h: 80, vx: 0, vy: 0,
+    hp: 100, speed: 3, attacking: false, timer: 0, hitback: 0,
 
     draw() {
         ctx.save();
-        if (this.hitback > 0) { ctx.globalAlpha = 0.5; ctx.translate(this.hitback, 0); }
-        
-        // Desenho Marinheiro
-        ctx.fillStyle = "white"; ctx.fillRect(this.x, this.y+20, 45, 45); // Camisa
-        ctx.fillStyle = "#1a237e"; ctx.fillRect(this.x, this.y+65, 45, 20); // Calça
-        ctx.fillStyle = "#f5c1a4"; ctx.fillRect(this.x+7, this.y-10, 30, 30); // Rosto
-        ctx.fillStyle = "white"; ctx.fillRect(this.x+2, this.y-15, 40, 10); // Quepe
-
-        if (this.attacking) {
-            ctx.fillStyle = "#f5c1a4";
-            ctx.fillRect(this.x - 30, this.y + 30, 35, 15); // Soco do inimigo
-        }
+        if (this.hitback > 0) { ctx.translate(this.hitback, 0); ctx.globalAlpha = 0.6; this.hitback *= 0.8; }
+        ctx.fillStyle = "white"; ctx.fillRect(this.x, this.y+20, 45, 45);
+        ctx.fillStyle = "#1a237e"; ctx.fillRect(this.x, this.y+65, 45, 20);
+        ctx.fillStyle = "#f5c1a4"; ctx.fillRect(this.x+7, this.y-10, 30, 30);
+        if (this.attacking) { ctx.fillStyle = "#f5c1a4"; ctx.fillRect(this.x - 30, this.y + 30, 35, 15); }
         ctx.restore();
     },
 
     update() {
-        if (this.hp <= 0) { this.x = -500; setTimeout(() => {this.hp=100; this.x=canvas.width;}, 3000); return; }
-
-        // IA Simples: Seguir o jogador
-        let diff = player.x - this.x;
-        if (Math.abs(diff) > 50) {
-            this.x += diff > 0 ? this.speed : -this.speed;
-        } else {
-            // Atacar se estiver perto
-            if (Math.random() > 0.95 && !this.attacking) {
-                this.attacking = true;
-                this.timer = 0;
-            }
-        }
+        if (this.hp <= 0) { this.x = -500; setTimeout(() => {this.hp=100; this.x=canvas.width-100;}, 3000); return; }
+        
+        let dist = player.x - this.x;
+        if (Math.abs(dist) > 60) this.x += dist > 0 ? this.speed : -this.speed;
+        else if (!this.attacking && Math.random() > 0.9) { this.attacking = true; this.timer = 0; }
 
         if (this.attacking) {
             this.timer++;
-            if (this.timer === 10 && Math.abs(player.x - this.x) < 60) {
-                player.hp -= 5;
-                shake = 10;
-            }
-            if (this.timer > 20) { this.attacking = false; }
+            if (this.timer === 10 && Math.abs(player.x - this.x) < 70) { player.hp -= 4; shake = 10; }
+            if (this.timer > 20) this.attacking = false;
         }
-
-        if (this.hitback > 0) this.hitback -= 1;
 
         if (this.y + 85 < canvas.height - groundHeight) this.vy += gravity;
         else { this.vy = 0; this.y = canvas.height - groundHeight - 85; }
         this.y += this.vy;
-
-        document.getElementById("enemyHp").style.width = this.hp + "%";
+        document.getElementById("e-hp").style.width = this.hp + "%";
     },
 
     takeDamage(dmg) {
         this.hp -= dmg;
-        this.hitback = player.x < this.x ? 15 : -15; // Afastadinha
+        this.hitback = player.x < this.x ? 20 : -20;
     }
 };
 
 window.addEventListener("keydown", (e) => {
     keys[e.key] = true;
-    if ((e.key === 'f' || e.key === 'F') && !player.attacking) { player.attacking = true; player.attackType = 'pistol'; player.timer = 0; }
-    if (e.key === '2') { player.transforming = true; player.transformTimer = 0; }
+    if (player.attacking || player.transforming) return;
+
+    if (e.key.toLowerCase() === 'f') { player.attacking = true; player.attackType = 'pistol'; }
+    if (e.key.toLowerCase() === 'r') { player.attacking = true; player.attackType = 'gatling'; }
+    if (e.key.toLowerCase() === 'e') { player.attacking = true; player.attackType = 'redhawk'; }
+    if (e.key.toLowerCase() === 'q' && player.gear5) { player.attacking = true; player.attackType = 'stomp'; }
+    
+    if (e.key === '1') { player.gear2 = !player.gear2; player.gear5 = false; player.speed = player.gear2 ? 11 : 7; }
+    if (e.key === '2' && !player.gear5) { player.transforming = true; player.timer = 0; player.gear2 = false; }
 });
 window.addEventListener("keyup", (e) => keys[e.key] = false);
 
-function gameLoop() {
+function loop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#388E3C"; ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
     
     player.update(); player.draw();
     enemy.update(); enemy.draw();
     
-    requestAnimationFrame(gameLoop);
+    requestAnimationFrame(loop);
 }
-gameLoop();
+loop();
 </script>
 </body>
 </html>

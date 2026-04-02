@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Luffy: Awakening Nika</title>
+    <title>Luffy Gear 5: Impacto Nika</title>
     <style>
         body { margin: 0; background: #111; overflow: hidden; font-family: sans-serif; touch-action: none; }
         canvas { display: block; background: #87CEEB; }
-        #ui { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.7); padding: 12px; border-radius: 8px; pointer-events: none; border: 2px solid #ffeb3b; }
+        #ui { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; pointer-events: none; border: 2px solid #ffeb3b; }
         b { color: #ffeb3b; }
     </style>
 </head>
@@ -15,8 +15,9 @@
 
 <div id="ui">
     <div class="controles-info">
-        <b>W A S D</b>: Mover | <b>F, R, E</b>: Ataques<br>
-        <b>1</b>: Gear 2 | <b>2</b>: <b>GEAR 5 (TRANSFORMAR)</b>
+        <b>W A S D</b>: Mover | <b>F, R, E</b>: Golpes<br>
+        <b>Q</b>: <b style="color:white">PISOTÃO GIGANTE (GEAR 5)</b><br>
+        <b>1</b>: G2 | <b>2</b>: <b>GEAR 5</b>
     </div>
 </div>
 
@@ -31,149 +32,155 @@ canvas.height = window.innerHeight;
 const gravity = 0.8;
 const groundHeight = 60;
 const keys = {};
+let shake = 0;
 
 const player = {
-    x: 100, y: 0, w: 40, h: 60,
+    x: 150, y: 0, w: 40, h: 60,
     vx: 0, vy: 0, speed: 7,
     jumping: false, attacking: false, attackType: '',
     timer: 0, gear2: false, gear5: false,
     transforming: false, transformTimer: 0,
+    groundEffect: { active: false, x: 0, timer: 0 },
+    particles: [],
 
     draw() {
+        ctx.save();
+        // Efeito de Tremor de Tela
+        if (shake > 0) {
+            ctx.translate(Math.random() * shake - shake/2, Math.random() * shake - shake/2);
+            shake *= 0.9;
+        }
+
         const px = this.x;
         const py = this.y;
         
-        let skin = "#f5c1a4";
-        let shirt = "#d32f2f";
-        let shorts = "#283593";
-        let hair = "#000";
+        let skin = this.gear5 ? "#ffffff" : (this.gear2 ? "#ff8a80" : "#f5c1a4");
+        let shirt = this.gear5 ? "#ffffff" : (this.gear2 ? "#b71c1c" : "#d32f2f");
+        let shorts = this.gear5 ? "#ffffff" : "#283593";
 
-        if (this.gear2) { skin = "#ff8a80"; shirt = "#b71c1c"; this.drawSmoke(); }
-        if (this.gear5) { skin = "#ffffff"; shirt = "#ffffff"; shorts = "#ffffff"; hair = "#ffffff"; }
-
-        ctx.save();
-
-        // --- ANIMAÇÃO DE TRANSFORMAÇÃO (DEITAR E RIR) ---
+        // --- CORPO ---
         if (this.transforming) {
             ctx.translate(px + 20, py + 40);
-            ctx.rotate(Math.PI / 2); // Deita o personagem
-            // Efeito de tremer (rindo)
-            ctx.translate(Math.random() * 5, Math.random() * 5);
+            ctx.rotate(Math.PI / 2);
+            ctx.translate(Math.random()*3, Math.random()*3);
             ctx.translate(-(px + 20), -(py + 40));
-            // Balão de risada "Hahaha"
-            ctx.fillStyle = "white";
-            ctx.font = "bold 20px Arial";
-            ctx.fillText("JOY BOY...", px + 50, py);
         }
 
-        // Pernas
+        // Pernas/Pé Gigante
         ctx.fillStyle = shorts;
-        ctx.fillRect(px + 5, py + 60, 12, 25); 
-        ctx.fillRect(px + 23, py + 60, 12, 25);
+        if (this.attacking && this.attackType === 'stomp') {
+            // Pé subindo e descendo
+            let legH = this.timer < 10 ? this.timer * 20 : (20 - this.timer) * 10;
+            ctx.fillRect(px + 10, py + 60 - legH, 35, 40 + legH); 
+            ctx.fillStyle = skin;
+            ctx.fillRect(px + 5, py + 100 - legH, 50, 30); // Pé gigante
+        } else {
+            ctx.fillRect(px + 5, py + 60, 12, 25); 
+            ctx.fillRect(px + 23, py + 60, 12, 25);
+        }
 
-        // Tronco
-        ctx.fillStyle = shirt;
-        ctx.fillRect(px, py + 20, 40, 40);
-
-        // Cabeça
-        ctx.fillStyle = skin;
-        ctx.fillRect(px + 5, py - 15, 30, 35);
+        // Tronco e Cabeça
+        ctx.fillStyle = shirt; ctx.fillRect(px, py + 20, 40, 40);
+        ctx.fillStyle = skin; ctx.fillRect(px + 5, py - 15, 30, 35);
         
-        // Cabelo e Chapéu
         if (this.gear5) {
-            ctx.fillStyle = "#fff";
-            ctx.shadowBlur = 15; ctx.shadowColor = "white";
+            ctx.fillStyle = "#fff"; ctx.shadowBlur = 15; ctx.shadowColor = "white";
             ctx.beginPath();
             ctx.arc(px + 5, py - 18, 12, 0, Math.PI*2);
             ctx.arc(px + 20, py - 25, 18, 0, Math.PI*2);
             ctx.arc(px + 35, py - 18, 12, 0, Math.PI*2);
             ctx.fill();
-            this.drawLightning(); // Raios do Gear 5
+            this.drawLightning();
         } else {
-            ctx.fillStyle = "#fbc02d";
-            ctx.fillRect(px - 5, py - 15, 50, 8);
-            ctx.fillStyle = "#d32f2f";
-            ctx.fillRect(px + 5, py - 20, 30, 5);
+            ctx.fillStyle = "#fbc02d"; ctx.fillRect(px - 5, py - 15, 50, 8);
+            ctx.fillStyle = "#d32f2f"; ctx.fillRect(px + 5, py - 20, 30, 5);
         }
 
-        // Ataques
-        if (this.attacking && !this.transforming) {
-            ctx.fillStyle = this.gear5 ? "#fff" : skin;
-            let reach = this.timer * (this.gear5 ? 40 : 25);
-            ctx.fillRect(px + 30, py + 30, reach, this.gear5 ? 20 : 12);
-            ctx.fillStyle = "#000";
-            ctx.fillRect(px + 30 + reach, py + 20, 30, 35);
+        // Soco comum
+        if (this.attacking && this.attackType !== 'stomp') {
+            ctx.fillStyle = skin;
+            let reach = this.timer * 30;
+            ctx.fillRect(px + 30, py + 30, reach, 15);
+            ctx.fillStyle = "#000"; ctx.fillRect(px + 30 + reach, py + 20, 30, 35);
         }
 
         ctx.restore();
-    },
-
-    drawSmoke() {
-        ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-        ctx.beginPath();
-        ctx.arc(this.x + Math.random()*40, this.y + 40 - (this.timer*2), 5, 0, Math.PI*2);
-        ctx.fill();
+        this.drawGroundEffects();
     },
 
     drawLightning() {
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = 2;
-        for(let i=0; i<3; i++) {
+        ctx.strokeStyle = "black"; ctx.lineWidth = 2;
+        for(let i=0; i<2; i++) {
             ctx.beginPath();
-            let rx = this.x + Math.random()*100 - 30;
-            let ry = this.y + Math.random()*100 - 30;
-            ctx.moveTo(rx, ry);
-            ctx.lineTo(rx + 10, ry + 10);
-            ctx.lineTo(rx - 5, ry + 20);
-            ctx.stroke();
+            let rx = this.x + Math.random()*80 - 20;
+            let ry = this.y + Math.random()*80 - 20;
+            ctx.moveTo(rx, ry); ctx.lineTo(rx + 5, ry + 10); ctx.lineTo(rx - 3, ry + 15); ctx.stroke();
         }
+    },
+
+    drawGroundEffects() {
+        // Buraco temporário
+        if (this.groundEffect.active) {
+            ctx.fillStyle = "#111"; // Cor do fundo (buraco)
+            ctx.beginPath();
+            ctx.ellipse(this.groundEffect.x + 25, canvas.height - groundHeight, 60, 20, 0, 0, Math.PI * 2);
+            ctx.fill();
+            this.groundEffect.timer++;
+            if (this.groundEffect.timer > 40) this.groundEffect.active = false;
+        }
+        // Partículas de terra voando
+        this.particles.forEach((p, i) => {
+            p.x += p.vx; p.y += p.vy; p.vy += 0.5;
+            ctx.fillStyle = "#5d4037";
+            ctx.fillRect(p.x, p.y, p.s, p.s);
+            if (p.y > canvas.height) this.particles.splice(i, 1);
+        });
     },
 
     update() {
         if (this.transforming) {
             this.transformTimer++;
-            if (this.transformTimer > 60) { // 1 segundo de animação
-                this.transforming = false;
-                this.gear5 = true;
-                this.speed = 16;
-            }
-            return; // Bloqueia movimento enquanto transforma
+            if (this.transformTimer > 60) { this.transforming = false; this.gear5 = true; this.speed = 15; }
+            return;
         }
 
         if (keys['a'] || keys['A']) this.vx = -this.speed;
         else if (keys['d'] || keys['D']) this.vx = this.speed;
         else this.vx = 0;
 
-        if ((keys['w'] || keys['W']) && !this.jumping) {
-            this.vy = this.gear5 ? -22 : -17;
-            this.jumping = true;
-        }
+        if ((keys['w'] || keys['W']) && !this.jumping) { this.vy = this.gear5 ? -22 : -17; this.jumping = true; }
 
-        this.x += this.vx;
-        this.y += this.vy;
+        this.x += this.vx; this.y += this.vy;
 
         if (this.y + this.h + 25 < canvas.height - groundHeight) {
             this.vy += gravity;
         } else {
-            this.vy = 0;
-            this.y = canvas.height - groundHeight - this.h - 25;
+            this.vy = 0; this.y = canvas.height - groundHeight - this.h - 25;
             this.jumping = false;
         }
 
         if (this.attacking) {
             this.timer++;
-            if (this.timer > 12) { this.attacking = false; this.timer = 0; }
+            // Momento do Impacto do Stomp
+            if (this.attackType === 'stomp' && this.timer === 10) {
+                shake = 20;
+                this.groundEffect = { active: true, x: this.x, timer: 0 };
+                for(let i=0; i<15; i++) {
+                    this.particles.push({
+                        x: this.x + 20, y: canvas.height - groundHeight,
+                        vx: Math.random() * 10 - 5, vy: -Math.random() * 15,
+                        s: Math.random() * 8 + 4
+                    });
+                }
+            }
+            if (this.timer > 20) { this.attacking = false; this.timer = 0; }
         }
     },
 
-    startGear5() {
-        if (!this.gear5 && !this.transforming) {
-            this.transforming = true;
-            this.transformTimer = 0;
-            this.gear2 = false;
-        } else {
-            this.gear5 = false;
-            this.speed = 7;
+    attack(type) {
+        if (!this.attacking && !this.transforming) {
+            if (type === 'stomp' && !this.gear5) return; // Só faz stomp no G5
+            this.attackType = type; this.attacking = true; this.timer = 0;
         }
     }
 };
@@ -181,18 +188,17 @@ const player = {
 window.addEventListener("keydown", (e) => {
     keys[e.key] = true;
     if (e.key === 'f' || e.key === 'F') player.attack('pistol');
+    if (e.key === 'q' || e.key === 'Q') player.attack('stomp');
     if (e.key === '1') { player.gear2 = !player.gear2; player.gear5 = false; player.speed = player.gear2 ? 12 : 7; }
-    if (e.key === '2') player.startGear5();
+    if (e.key === '2') { if(!player.gear5) { player.transforming = true; player.transformTimer = 0; } else { player.gear5 = false; player.speed = 7; } }
 });
 window.addEventListener("keyup", (e) => { keys[e.key] = false; });
 
 function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // Chão
     ctx.fillStyle = "#388E3C";
     ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
-    player.update();
-    player.draw();
+    player.update(); player.draw();
     requestAnimationFrame(gameLoop);
 }
 gameLoop();

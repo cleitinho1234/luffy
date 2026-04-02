@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Luffy Gear 5: Impacto Nika</title>
+    <title>Luffy Nika: Gigant Stomp</title>
     <style>
         body { margin: 0; background: #111; overflow: hidden; font-family: sans-serif; touch-action: none; }
         canvas { display: block; background: #87CEEB; }
@@ -16,8 +16,8 @@
 <div id="ui">
     <div class="controles-info">
         <b>W A S D</b>: Mover | <b>F, R, E</b>: Golpes<br>
-        <b>Q</b>: <b style="color:white">PISOTÃO GIGANTE (GEAR 5)</b><br>
-        <b>1</b>: G2 | <b>2</b>: <b>GEAR 5</b>
+        <b>Q</b>: <b style="color:#ffeb3b">GOMU GOMU NO GIGANT STOMP</b><br>
+        <b>1</b>: G2 | <b>2</b>: <b>GEAR 5 (NIKA)</b>
     </div>
 </div>
 
@@ -45,10 +45,9 @@ const player = {
 
     draw() {
         ctx.save();
-        // Efeito de Tremor de Tela
         if (shake > 0) {
             ctx.translate(Math.random() * shake - shake/2, Math.random() * shake - shake/2);
-            shake *= 0.9;
+            shake *= 0.85;
         }
 
         const px = this.x;
@@ -57,51 +56,68 @@ const player = {
         let skin = this.gear5 ? "#ffffff" : (this.gear2 ? "#ff8a80" : "#f5c1a4");
         let shirt = this.gear5 ? "#ffffff" : (this.gear2 ? "#b71c1c" : "#d32f2f");
         let shorts = this.gear5 ? "#ffffff" : "#283593";
+        let stroke = this.gear5 ? "#000000" : "transparent"; // Contorno só pro G5
 
-        // --- CORPO ---
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 3;
+
+        // --- ANIMAÇÃO DEITAR (TRANSFORMANDO) ---
         if (this.transforming) {
             ctx.translate(px + 20, py + 40);
             ctx.rotate(Math.PI / 2);
-            ctx.translate(Math.random()*3, Math.random()*3);
+            ctx.translate(Math.random()*5, Math.random()*5);
             ctx.translate(-(px + 20), -(py + 40));
         }
 
-        // Pernas/Pé Gigante
+        // --- PERNAS E ATAQUE "Q" (GIGANT STOMP) ---
         ctx.fillStyle = shorts;
         if (this.attacking && this.attackType === 'stomp') {
-            // Pé subindo e descendo
-            let legH = this.timer < 10 ? this.timer * 20 : (20 - this.timer) * 10;
-            ctx.fillRect(px + 10, py + 60 - legH, 35, 40 + legH); 
+            // Perna esticando até o céu (fora da tela)
+            let legY = this.timer < 12 ? this.timer * 80 : 1000 - (this.timer * 40);
+            ctx.fillRect(px + 5, py + 60 - legY, 50, 1500); // Perna infinita
+            if(this.gear5) ctx.strokeRect(px + 5, py + 60 - legY, 50, 1500);
+            
+            // Pé Gigante no final da perna
             ctx.fillStyle = skin;
-            ctx.fillRect(px + 5, py + 100 - legH, 50, 30); // Pé gigante
+            ctx.fillRect(px - 10, py + 1500 + 60 - legY, 80, 50);
+            if(this.gear5) ctx.strokeRect(px - 10, py + 1500 + 60 - legY, 80, 50);
         } else {
             ctx.fillRect(px + 5, py + 60, 12, 25); 
             ctx.fillRect(px + 23, py + 60, 12, 25);
+            if(this.gear5) { ctx.strokeRect(px+5, py+60, 12, 25); ctx.strokeRect(px+23, py+60, 12, 25); }
         }
 
-        // Tronco e Cabeça
-        ctx.fillStyle = shirt; ctx.fillRect(px, py + 20, 40, 40);
-        ctx.fillStyle = skin; ctx.fillRect(px + 5, py - 15, 30, 35);
+        // --- TRONCO ---
+        ctx.fillStyle = shirt; 
+        ctx.fillRect(px, py + 20, 40, 40);
+        if(this.gear5) ctx.strokeRect(px, py+20, 40, 40);
+
+        // --- CABEÇA ---
+        ctx.fillStyle = skin; 
+        ctx.fillRect(px + 5, py - 15, 30, 35);
+        if(this.gear5) ctx.strokeRect(px+5, py-15, 30, 35);
         
         if (this.gear5) {
-            ctx.fillStyle = "#fff"; ctx.shadowBlur = 15; ctx.shadowColor = "white";
+            // Cabelo de Nuvem com Contorno
+            ctx.fillStyle = "#fff";
             ctx.beginPath();
-            ctx.arc(px + 5, py - 18, 12, 0, Math.PI*2);
-            ctx.arc(px + 20, py - 25, 18, 0, Math.PI*2);
-            ctx.arc(px + 35, py - 18, 12, 0, Math.PI*2);
-            ctx.fill();
+            ctx.arc(px + 5, py - 18, 14, 0, Math.PI*2);
+            ctx.arc(px + 20, py - 28, 20, 0, Math.PI*2);
+            ctx.arc(px + 35, py - 18, 14, 0, Math.PI*2);
+            ctx.fill(); ctx.stroke();
             this.drawLightning();
         } else {
             ctx.fillStyle = "#fbc02d"; ctx.fillRect(px - 5, py - 15, 50, 8);
             ctx.fillStyle = "#d32f2f"; ctx.fillRect(px + 5, py - 20, 30, 5);
         }
 
-        // Soco comum
+        // Braço comum
         if (this.attacking && this.attackType !== 'stomp') {
             ctx.fillStyle = skin;
-            let reach = this.timer * 30;
-            ctx.fillRect(px + 30, py + 30, reach, 15);
-            ctx.fillStyle = "#000"; ctx.fillRect(px + 30 + reach, py + 20, 30, 35);
+            let reach = this.timer * 35;
+            ctx.fillRect(px + 35, py + 30, reach, 18);
+            if(this.gear5) ctx.strokeRect(px + 35, py + 30, reach, 18);
+            ctx.fillStyle = "#000"; ctx.fillRect(px + 35 + reach, py + 20, 35, 40);
         }
 
         ctx.restore();
@@ -110,28 +126,26 @@ const player = {
 
     drawLightning() {
         ctx.strokeStyle = "black"; ctx.lineWidth = 2;
-        for(let i=0; i<2; i++) {
+        for(let i=0; i<3; i++) {
             ctx.beginPath();
-            let rx = this.x + Math.random()*80 - 20;
-            let ry = this.y + Math.random()*80 - 20;
-            ctx.moveTo(rx, ry); ctx.lineTo(rx + 5, ry + 10); ctx.lineTo(rx - 3, ry + 15); ctx.stroke();
+            let rx = this.x + Math.random()*120 - 40;
+            let ry = this.y + Math.random()*120 - 40;
+            ctx.moveTo(rx, ry); ctx.lineTo(rx + 8, ry + 12); ctx.stroke();
         }
     },
 
     drawGroundEffects() {
-        // Buraco temporário
         if (this.groundEffect.active) {
-            ctx.fillStyle = "#111"; // Cor do fundo (buraco)
+            ctx.fillStyle = "rgba(0,0,0,0.4)";
             ctx.beginPath();
-            ctx.ellipse(this.groundEffect.x + 25, canvas.height - groundHeight, 60, 20, 0, 0, Math.PI * 2);
+            ctx.ellipse(this.groundEffect.x + 20, canvas.height - groundHeight, 100, 30, 0, 0, Math.PI * 2);
             ctx.fill();
             this.groundEffect.timer++;
-            if (this.groundEffect.timer > 40) this.groundEffect.active = false;
+            if (this.groundEffect.timer > 30) this.groundEffect.active = false;
         }
-        // Partículas de terra voando
         this.particles.forEach((p, i) => {
-            p.x += p.vx; p.y += p.vy; p.vy += 0.5;
-            ctx.fillStyle = "#5d4037";
+            p.x += p.vx; p.y += p.vy; p.vy += 0.6;
+            ctx.fillStyle = p.c;
             ctx.fillRect(p.x, p.y, p.s, p.s);
             if (p.y > canvas.height) this.particles.splice(i, 1);
         });
@@ -148,38 +162,39 @@ const player = {
         else if (keys['d'] || keys['D']) this.vx = this.speed;
         else this.vx = 0;
 
-        if ((keys['w'] || keys['W']) && !this.jumping) { this.vy = this.gear5 ? -22 : -17; this.jumping = true; }
+        if ((keys['w'] || keys['W']) && !this.jumping) { this.vy = this.gear5 ? -24 : -17; this.jumping = true; }
 
         this.x += this.vx; this.y += this.vy;
 
         if (this.y + this.h + 25 < canvas.height - groundHeight) {
             this.vy += gravity;
         } else {
-            this.vy = 0; this.y = canvas.height - groundHeight - this.h - 25;
+            this.vy = 0;
+            this.y = canvas.height - groundHeight - this.h - 25;
             this.jumping = false;
         }
 
         if (this.attacking) {
             this.timer++;
-            // Momento do Impacto do Stomp
-            if (this.attackType === 'stomp' && this.timer === 10) {
-                shake = 20;
+            // Momento do Impacto (O pé volta do céu no frame 18)
+            if (this.attackType === 'stomp' && this.timer === 18) {
+                shake = 35;
                 this.groundEffect = { active: true, x: this.x, timer: 0 };
-                for(let i=0; i<15; i++) {
+                for(let i=0; i<25; i++) {
                     this.particles.push({
                         x: this.x + 20, y: canvas.height - groundHeight,
-                        vx: Math.random() * 10 - 5, vy: -Math.random() * 15,
-                        s: Math.random() * 8 + 4
+                        vx: Math.random() * 20 - 10, vy: -Math.random() * 20,
+                        s: Math.random() * 10 + 5, c: Math.random() > 0.5 ? "#5d4037" : "#ffffff"
                     });
                 }
             }
-            if (this.timer > 20) { this.attacking = false; this.timer = 0; }
+            if (this.timer > 35) { this.attacking = false; this.timer = 0; }
         }
     },
 
     attack(type) {
         if (!this.attacking && !this.transforming) {
-            if (type === 'stomp' && !this.gear5) return; // Só faz stomp no G5
+            if (type === 'stomp' && !this.gear5) return;
             this.attackType = type; this.attacking = true; this.timer = 0;
         }
     }

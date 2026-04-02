@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Luffy: Gear Second</title>
+    <title>Luffy: Gear 5 - Nika</title>
     <style>
         body { margin: 0; background: #111; overflow: hidden; font-family: sans-serif; touch-action: none; }
-        canvas { display: block; background: #87CEEB; }
-        #ui { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; pointer-events: none; }
-        .controles-info { font-size: 14px; line-height: 1.6; }
+        canvas { display: block; background: #87CEEB; transition: background 1s; }
+        #ui { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 12px; border-radius: 8px; pointer-events: none; }
         b { color: #ffeb3b; }
+        .gear5-active { background: #fdfdfd !important; } /* Muda o céu no Gear 5 */
     </style>
 </head>
 <body>
@@ -17,8 +17,8 @@
 <div id="ui">
     <div class="controles-info">
         <b>W A S D</b>: Mover/Pular<br>
-        <b>F</b>: Pistol | <b>R</b>: Gatling | <b>E</b>: Red Hawk<br>
-        <b>1</b>: GEAR SECOND (Ativar/Desativar)
+        <b>F, R, E</b>: Ataques (Pistol, Gatling, Especial)<br>
+        <b>1</b>: Gear 2 | <b>2</b>: <b>GEAR 5 (NIKA)</b>
     </div>
 </div>
 
@@ -44,97 +44,119 @@ const player = {
     attackType: '',
     timer: 0,
     gear2: false,
-    smokeParticles: [],
+    gear5: false,
+    particles: [],
 
     draw() {
         const px = this.x;
         const py = this.y;
         
-        // Efeito de Fumaça (Gear 2)
+        // Cores baseadas na transformação
+        let skin = "#f5c1a4";
+        let shirt = "#d32f2f";
+        let shorts = "#283593";
+        let hair = "#000";
+
         if (this.gear2) {
+            skin = "#ff8a80"; 
+            shirt = "#b71c1c";
             this.drawSmoke();
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = "pink";
-        } else {
-            ctx.shadowBlur = 0;
         }
 
-        // --- DESENHO DO PERSONAGEM ---
-        const skinColor = this.gear2 ? "#ff8a80" : "#f5c1a4"; // Pele avermelhada no Gear 2
+        if (this.gear5) {
+            skin = "#ffffff"; 
+            shirt = "#ffffff";
+            shorts = "#ffffff";
+            hair = "#ffffff";
+            this.drawNikaAura();
+        }
+
+        // --- DESENHO DO LUFFY ---
 
         // Pernas
-        ctx.fillStyle = "#283593"; 
+        ctx.fillStyle = shorts;
         ctx.fillRect(px + 5, py + 60, 12, 25); 
         ctx.fillRect(px + 23, py + 60, 12, 25); 
 
-        // Tronco (Camisa Vermelha)
-        ctx.fillStyle = this.gear2 ? "#b71c1c" : "#d32f2f";
+        // Tronco
+        ctx.fillStyle = shirt;
         ctx.fillRect(px, py + 20, 40, 40);
 
-        // Cabeça
-        ctx.fillStyle = skinColor;
+        // Cabeça e Cabelo
+        ctx.fillStyle = skin;
         ctx.fillRect(px + 5, py - 15, 30, 35);
+        
+        // Cabelo Gear 5 (Nuvem)
+        ctx.fillStyle = hair;
+        if (this.gear5) {
+            ctx.beginPath();
+            ctx.arc(px + 5, py - 15, 15, 0, Math.PI*2);
+            ctx.arc(px + 20, py - 25, 18, 0, Math.PI*2);
+            ctx.arc(px + 35, py - 15, 15, 0, Math.PI*2);
+            ctx.fill();
+        } else {
+            // Chapéu de Palha comum
+            ctx.fillStyle = "#fbc02d";
+            ctx.fillRect(px - 5, py - 15, 50, 8);
+            ctx.fillStyle = "#d32f2f";
+            ctx.fillRect(px + 5, py - 20, 30, 5);
+        }
 
-        // Chapéu
-        ctx.fillStyle = "#fbc02d";
-        ctx.fillRect(px - 5, py - 15, 50, 8);
-        ctx.fillStyle = "#d32f2f";
-        ctx.fillRect(px + 5, py - 20, 30, 5);
-
-        // Braço em repouso ou Ataque
-        ctx.fillStyle = skinColor;
+        // Braços / Ataques
+        ctx.fillStyle = skin;
         if (this.attacking) {
-            let reach = this.timer * 30;
+            let reach = this.timer * (this.gear5 ? 45 : 30);
             if (this.attackType === 'pistol' || this.attackType === 'redhawk') {
-                if(this.attackType === 'redhawk') ctx.fillStyle = "#ff5722"; // Fogo
-                ctx.fillRect(px + 30, py + 30, reach, 15); // Braço esticando
-                ctx.fillStyle = "#000";
-                ctx.fillRect(px + 30 + reach, py + 25, 25, 25); // Punho
+                if(this.attackType === 'redhawk') ctx.fillStyle = this.gear5 ? "#ffee58" : "#ff5722";
+                ctx.fillRect(px + 30, py + 30, reach, this.gear5 ? 25 : 15); // Braço gigante no G5
+                ctx.fillStyle = this.gear5 ? "#fff" : "#000";
+                ctx.fillRect(px + 30 + reach, py + 20, 30, 35); // Punho
             } else if (this.attackType === 'gatling') {
-                for(let i=0; i<8; i++) {
-                    ctx.fillRect(px + 30, py + (i * 8), Math.random() * 250, 6);
+                for(let i=0; i< (this.gear5 ? 15 : 8); i++) {
+                    ctx.fillRect(px + 30, py + (i * 6), Math.random() * (this.gear5 ? 400 : 250), 6);
                 }
             }
         } else {
             ctx.fillRect(px + 40, py + 25, 10, 30);
         }
-        ctx.shadowBlur = 0;
     },
 
     drawSmoke() {
-        if (Math.random() > 0.7) {
-            this.smokeParticles.push({
-                x: this.x + Math.random() * 40,
-                y: this.y + 40,
-                r: Math.random() * 5 + 2,
-                v: Math.random() * 2 + 1
-            });
-        }
-        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-        this.smokeParticles.forEach((p, i) => {
+        ctx.fillStyle = "rgba(255, 200, 200, 0.4)";
+        if (Math.random() > 0.6) this.particles.push({x:this.x+20, y:this.y+40, r:5, v:2, type:'smoke'});
+        this.updateParticles('smoke');
+    },
+
+    drawNikaAura() {
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = "white";
+        if (Math.random() > 0.5) this.particles.push({x:this.x+Math.random()*40, y:this.y+Math.random()*60, r:3, v:1, type:'nika'});
+        this.updateParticles('nika');
+    },
+
+    updateParticles(type) {
+        this.particles.forEach((p, i) => {
             p.y -= p.v;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
             ctx.fill();
-            if (p.y < this.y - 50) this.smokeParticles.splice(i, 1);
+            if (p.y < this.y - 60) this.particles.splice(i, 1);
         });
     },
 
     update() {
-        // Movimentação WASD
         if (keys['a'] || keys['A']) this.vx = -this.speed;
         else if (keys['d'] || keys['D']) this.vx = this.speed;
         else this.vx = 0;
 
         if ((keys['w'] || keys['W']) && !this.jumping) {
-            this.vy = -18;
+            this.vy = this.gear5 ? -22 : -18; // Pula mais alto no Gear 5
             this.jumping = true;
         }
 
         this.x += this.vx;
         this.y += this.vy;
 
-        // Gravidade
         if (this.y + this.h + 25 < canvas.height - groundHeight) {
             this.vy += gravity;
         } else {
@@ -143,31 +165,27 @@ const player = {
             this.jumping = false;
         }
 
-        // Limites da tela
-        if (this.x < 0) this.x = 0;
-        if (this.x > canvas.width - this.w) this.x = canvas.width - this.w;
-
-        // Animação Ataque
         if (this.attacking) {
             this.timer++;
-            if (this.timer > 12) {
-                this.attacking = false;
-                this.timer = 0;
-            }
+            if (this.timer > 12) { this.attacking = false; this.timer = 0; }
         }
     },
 
     attack(type) {
-        if (!this.attacking) {
-            this.attackType = type;
-            this.attacking = true;
-            this.timer = 0;
-        }
+        if (!this.attacking) { this.attackType = type; this.attacking = true; this.timer = 0; }
     },
 
-    toggleGear2() {
-        this.gear2 = !this.gear2;
-        this.speed = this.gear2 ? 12 : 7; // Mais rápido no Gear 2
+    toggleGear(g) {
+        if (g === 2) {
+            this.gear2 = !this.gear2; this.gear5 = false;
+            this.speed = this.gear2 ? 12 : 7;
+            canvas.style.background = "#87CEEB";
+        }
+        if (g === 5) {
+            this.gear5 = !this.gear5; this.gear2 = false;
+            this.speed = this.gear5 ? 15 : 7;
+            canvas.style.background = this.gear5 ? "#ffffff" : "#87CEEB";
+        }
     }
 };
 
@@ -176,15 +194,18 @@ window.addEventListener("keydown", (e) => {
     if (e.key === 'f' || e.key === 'F') player.attack('pistol');
     if (e.key === 'r' || e.key === 'R') player.attack('gatling');
     if (e.key === 'e' || e.key === 'E') player.attack('redhawk');
-    if (e.key === '1') player.toggleGear2();
+    if (e.key === '1') player.toggleGear(2);
+    if (e.key === '2') player.toggleGear(5);
 });
 
 window.addEventListener("keyup", (e) => { keys[e.key] = false; });
 
 function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#388E3C";
+    // Chão muda no Gear 5 (estilo cartoon)
+    ctx.fillStyle = player.gear5 ? "#ddd" : "#388E3C";
     ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+    
     player.update();
     player.draw();
     requestAnimationFrame(gameLoop);

@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Luffy: Gear 5 corrigido</title>
+    <title>Luffy: Awakening Nika</title>
     <style>
         body { margin: 0; background: #111; overflow: hidden; font-family: sans-serif; touch-action: none; }
-        canvas { display: block; background: #87CEEB; transition: background 0.5s; }
+        canvas { display: block; background: #87CEEB; }
         #ui { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.7); padding: 12px; border-radius: 8px; pointer-events: none; border: 2px solid #ffeb3b; }
         b { color: #ffeb3b; }
     </style>
@@ -15,9 +15,8 @@
 
 <div id="ui">
     <div class="controles-info">
-        <b>W A S D</b>: Mover/Pular<br>
-        <b>F, R, E</b>: Ataques<br>
-        <b>1</b>: Gear 2 | <b>2</b>: <b>GEAR 5 (NIKA)</b>
+        <b>W A S D</b>: Mover | <b>F, R, E</b>: Ataques<br>
+        <b>1</b>: Gear 2 | <b>2</b>: <b>GEAR 5 (TRANSFORMAR)</b>
     </div>
 </div>
 
@@ -26,7 +25,6 @@
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
@@ -36,14 +34,10 @@ const keys = {};
 
 const player = {
     x: 100, y: 0, w: 40, h: 60,
-    vx: 0, vy: 0,
-    speed: 7,
-    jumping: false,
-    attacking: false,
-    attackType: '',
-    timer: 0,
-    gear2: false,
-    gear5: false,
+    vx: 0, vy: 0, speed: 7,
+    jumping: false, attacking: false, attackType: '',
+    timer: 0, gear2: false, gear5: false,
+    transforming: false, transformTimer: 0,
 
     draw() {
         const px = this.x;
@@ -53,76 +47,99 @@ const player = {
         let shirt = "#d32f2f";
         let shorts = "#283593";
         let hair = "#000";
-        let strokeColor = "transparent";
 
-        if (this.gear2) {
-            skin = "#ff8a80"; 
-            shirt = "#b71c1c";
+        if (this.gear2) { skin = "#ff8a80"; shirt = "#b71c1c"; this.drawSmoke(); }
+        if (this.gear5) { skin = "#ffffff"; shirt = "#ffffff"; shorts = "#ffffff"; hair = "#ffffff"; }
+
+        ctx.save();
+
+        // --- ANIMAÇÃO DE TRANSFORMAÇÃO (DEITAR E RIR) ---
+        if (this.transforming) {
+            ctx.translate(px + 20, py + 40);
+            ctx.rotate(Math.PI / 2); // Deita o personagem
+            // Efeito de tremer (rindo)
+            ctx.translate(Math.random() * 5, Math.random() * 5);
+            ctx.translate(-(px + 20), -(py + 40));
+            // Balão de risada "Hahaha"
+            ctx.fillStyle = "white";
+            ctx.font = "bold 20px Arial";
+            ctx.fillText("JOY BOY...", px + 50, py);
         }
-
-        if (this.gear5) {
-            skin = "#ffffff"; 
-            shirt = "#ffffff";
-            shorts = "#ffffff";
-            hair = "#ffffff";
-            strokeColor = "#333"; // Contorno para não sumir no branco
-        }
-
-        // --- DESENHO DO CORPO ---
-        ctx.strokeStyle = strokeColor;
-        ctx.lineWidth = 2;
 
         // Pernas
         ctx.fillStyle = shorts;
         ctx.fillRect(px + 5, py + 60, 12, 25); 
         ctx.fillRect(px + 23, py + 60, 12, 25);
-        if(this.gear5) { ctx.strokeRect(px+5, py+60, 12, 25); ctx.strokeRect(px+23, py+60, 12, 25); }
 
         // Tronco
         ctx.fillStyle = shirt;
         ctx.fillRect(px, py + 20, 40, 40);
-        if(this.gear5) ctx.strokeRect(px, py+20, 40, 40);
 
         // Cabeça
         ctx.fillStyle = skin;
         ctx.fillRect(px + 5, py - 15, 30, 35);
-        if(this.gear5) ctx.strokeRect(px+5, py-15, 30, 35);
         
-        // Cabelo Gear 5 (Nuvem Branca)
+        // Cabelo e Chapéu
         if (this.gear5) {
             ctx.fillStyle = "#fff";
+            ctx.shadowBlur = 15; ctx.shadowColor = "white";
             ctx.beginPath();
             ctx.arc(px + 5, py - 18, 12, 0, Math.PI*2);
-            ctx.arc(px + 20, py - 25, 15, 0, Math.PI*2);
+            ctx.arc(px + 20, py - 25, 18, 0, Math.PI*2);
             ctx.arc(px + 35, py - 18, 12, 0, Math.PI*2);
             ctx.fill();
-            ctx.stroke();
+            this.drawLightning(); // Raios do Gear 5
         } else {
-            // Chapéu
             ctx.fillStyle = "#fbc02d";
             ctx.fillRect(px - 5, py - 15, 50, 8);
             ctx.fillStyle = "#d32f2f";
             ctx.fillRect(px + 5, py - 20, 30, 5);
         }
 
-        // Braços / Ataques
-        if (this.attacking) {
+        // Ataques
+        if (this.attacking && !this.transforming) {
             ctx.fillStyle = this.gear5 ? "#fff" : skin;
             let reach = this.timer * (this.gear5 ? 40 : 25);
-            
             ctx.fillRect(px + 30, py + 30, reach, this.gear5 ? 20 : 12);
-            if(this.gear5) ctx.strokeRect(px+30, py+30, reach, 20);
-
-            ctx.fillStyle = "#000"; // Punho
+            ctx.fillStyle = "#000";
             ctx.fillRect(px + 30 + reach, py + 20, 30, 35);
-        } else {
-            ctx.fillStyle = skin;
-            ctx.fillRect(px + 40, py + 25, 10, 30);
-            if(this.gear5) ctx.strokeRect(px+40, py+25, 10, 30);
+        }
+
+        ctx.restore();
+    },
+
+    drawSmoke() {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+        ctx.beginPath();
+        ctx.arc(this.x + Math.random()*40, this.y + 40 - (this.timer*2), 5, 0, Math.PI*2);
+        ctx.fill();
+    },
+
+    drawLightning() {
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 2;
+        for(let i=0; i<3; i++) {
+            ctx.beginPath();
+            let rx = this.x + Math.random()*100 - 30;
+            let ry = this.y + Math.random()*100 - 30;
+            ctx.moveTo(rx, ry);
+            ctx.lineTo(rx + 10, ry + 10);
+            ctx.lineTo(rx - 5, ry + 20);
+            ctx.stroke();
         }
     },
 
     update() {
+        if (this.transforming) {
+            this.transformTimer++;
+            if (this.transformTimer > 60) { // 1 segundo de animação
+                this.transforming = false;
+                this.gear5 = true;
+                this.speed = 16;
+            }
+            return; // Bloqueia movimento enquanto transforma
+        }
+
         if (keys['a'] || keys['A']) this.vx = -this.speed;
         else if (keys['d'] || keys['D']) this.vx = this.speed;
         else this.vx = 0;
@@ -149,21 +166,14 @@ const player = {
         }
     },
 
-    attack(type) {
-        if (!this.attacking) { this.attackType = type; this.attacking = true; this.timer = 0; }
-    },
-
-    toggleGear(g) {
-        if (g === 2) {
-            this.gear2 = !this.gear2; this.gear5 = false;
-            this.speed = this.gear2 ? 12 : 7;
-            canvas.style.background = "#87CEEB";
-        }
-        if (g === 5) {
-            this.gear5 = !this.gear5; this.gear2 = false;
-            this.speed = this.gear5 ? 16 : 7;
-            // Fundo Azul bem clarinho pro Nika não sumir
-            canvas.style.background = this.gear5 ? "#e3f2fd" : "#87CEEB";
+    startGear5() {
+        if (!this.gear5 && !this.transforming) {
+            this.transforming = true;
+            this.transformTimer = 0;
+            this.gear2 = false;
+        } else {
+            this.gear5 = false;
+            this.speed = 7;
         }
     }
 };
@@ -171,16 +181,15 @@ const player = {
 window.addEventListener("keydown", (e) => {
     keys[e.key] = true;
     if (e.key === 'f' || e.key === 'F') player.attack('pistol');
-    if (e.key === 'r' || e.key === 'R') player.attack('gatling');
-    if (e.key === 'e' || e.key === 'E') player.attack('redhawk');
-    if (e.key === '1') player.toggleGear(2);
-    if (e.key === '2') player.toggleGear(5);
+    if (e.key === '1') { player.gear2 = !player.gear2; player.gear5 = false; player.speed = player.gear2 ? 12 : 7; }
+    if (e.key === '2') player.startGear5();
 });
 window.addEventListener("keyup", (e) => { keys[e.key] = false; });
 
 function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = player.gear5 ? "#cfd8dc" : "#388E3C";
+    // Chão
+    ctx.fillStyle = "#388E3C";
     ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
     player.update();
     player.draw();

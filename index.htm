@@ -3,24 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Luffy: Pirate Warriors</title>
+    <title>Luffy: Sprite Battle</title>
     <style>
         body { margin: 0; background: #111; overflow: hidden; font-family: 'Courier New', Courier, monospace; touch-action: none; }
         canvas { display: block; background: #87CEEB; }
-        #ui { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; border: 2px solid #ffeb3b; z-index: 10; pointer-events: none; }
+        #ui { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px; z-index: 10; pointer-events: none; border: 2px solid #ffeb3b; }
         .hud { position: fixed; top: 10px; right: 10px; width: 250px; text-align: right; }
         .hp-bar { width: 100%; height: 15px; background: #333; border: 2px solid white; margin: 5px 0; overflow: hidden; }
         .hp-fill { height: 100%; background: #4CAF50; transition: width 0.1s; }
         .label { font-size: 14px; color: white; font-weight: bold; text-shadow: 2px 2px black; }
+        #carregando { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 20px; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; z-index: 100; }
     </style>
 </head>
 <body>
 
+<div id="carregando">Carregando Sprites...<br>(Aguarde os links das imagens)</div>
+
 <div id="ui">
-    <b>CONTROLES:</b><br>
-    MOVER: <b>W A S D</b><br>
-    ATAQUES: <b>F, R, E, Q</b><br>
-    GEARS: <b>1 (G2) | 2 (G5)</b>
+    <b>W A S D</b>: Mover | <b>F, R</b>: Ataques<br>
+    <b>1</b>: G2 | <b>2</b>: <b>G5 (Em breve)</b>
 </div>
 
 <div class="hud">
@@ -38,85 +39,92 @@ const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
+// --- CONFIGURAÇÃO DE IMAGENS (SPRITES) ---
+
+// 1. Crie os objetos de imagem
+const imgLuffy = new Image();
+const imgEnemy = new Image();
+
+// 2. DEFINE OS LINKS (Substitua aqui pelos links reais .png)
+// Como eu não tenho o link do Luffy, usei um sprite temporário de teste
+imgLuffy.src = "https://i.imgur.com/8N69D6S.png"; // <-- MUDE AQUI PARA O LINK DO LUFFY
+imgEnemy.src = "https://i.imgur.com/XU6sXNl.png"; // Link temporário do inimigo
+
+let imagesLoaded = 0;
+function imageLoaded() {
+    imagesLoaded++;
+    if (imagesLoaded === 2) {
+        document.getElementById("carregando").style.display = "none";
+        loop(); // Só começa o jogo quando as imagens carregarem
+    }
+}
+imgLuffy.onload = imageLoaded;
+imgEnemy.onload = imageLoaded;
+
+// Configurações do Jogo
 const gravity = 0.8;
 const groundHeight = 60;
 const keys = {};
 let shake = 0;
 
-// Partículas de Impacto
-let fx = [];
+// Configuração da Animação do Luffy (Sprite Sheet)
+// Eu preciso saber o tamanho de cada "quadradinho" da sua imagem.
+// Usei valores genéricos aqui (64x64px).
+const luffySpriteInfo = {
+    sw: 64, // Largura de cada frame na imagem original
+    sh: 64, // Altura de cada frame na imagem original
+    dw: 100, // Largura que vai aparecer na tela (esticado)
+    dh: 100, // Altura que vai aparecer na tela
+    states: {
+        idle: { row: 0, frames: 4, speed: 10 }, // Linha 0 da imagem, 4 desenhos, velocidade
+        run:  { row: 1, frames: 6, speed: 5 },  // Linha 1 da imagem...
+        punch:{ row: 2, frames: 3, speed: 5 }
+    }
+};
 
 const player = {
-    x: 150, y: 0, w: 40, h: 60, vx: 0, vy: 0, hp: 100,
-    speed: 7, jumping: false, attacking: false, attackType: '',
-    timer: 0, gear2: false, gear5: false, transforming: false,
+    x: 150, y: 0, vx: 0, vy: 0, hp: 100,
+    speed: 7, jumping: false, attacking: false, timer: 0,
+    state: 'idle', frame: 0, animTimer: 0,
     
     draw() {
         ctx.save();
         if (shake > 0) { ctx.translate(Math.random()*shake-shake/2, Math.random()*shake-shake/2); shake *= 0.8; }
         
-        const px = this.x; const py = this.y;
-        let skin = this.gear5 ? "#fff" : (this.gear2 ? "#ff8a80" : "#f5c1a4");
-        let shirt = this.gear5 ? "#fff" : (this.gear2 ? "#b71c1c" : "#d32f2f");
+        // --- LÓGICA DE ANIMAÇÃO ---
+        this.animTimer++;
+        const sInfo = luffySpriteInfo;
+        const state = sInfo.states[this.state];
         
-        ctx.lineWidth = this.gear5 ? 3 : 1;
-        ctx.strokeStyle = this.gear5 ? "#000" : "transparent";
-
-        // --- ANIMAÇÃO G5 RIR ---
-        if (this.transforming) {
-            ctx.translate(px+20, py+40); ctx.rotate(Math.PI/2); ctx.translate(-(px+20), -(py+40));
-        }
-
-        // Braços Gatling (Visual)
-        if (this.attacking && this.attackType === 'gatling') {
-            ctx.fillStyle = skin;
-            for(let i=0; i<10; i++) {
-                ctx.fillRect(px+40, py + (i*8) - 10, Math.random()*200 + 50, 8);
-                if(this.gear5) ctx.strokeRect(px+40, py + (i*8) - 10, Math.random()*200 + 50, 8);
+        if (this.animTimer > state.speed) {
+            this.frame = (this.frame + 1) % state.frames;
+            this.animTimer = 0;
+            // Se acabar a animação de soco, volta pro idle
+            if(this.state === 'punch' && this.frame === state.frames - 1) {
+                this.attacking = false;
+                this.state = 'idle';
             }
         }
 
-        // Pernas / Pisotão
-        ctx.fillStyle = this.gear5 ? "#fff" : "#283593";
-        if (this.attacking && this.attackType === 'stomp') {
-            let legY = this.timer < 10 ? this.timer * 60 : 600 - (this.timer * 30);
-            ctx.fillRect(px+5, py+60-legY, 50, 1000);
-            if(this.gear5) ctx.strokeRect(px+5, py+60-legY, 50, 1000);
-        } else {
-            ctx.fillRect(px+5, py+60, 12, 25); ctx.fillRect(px+23, py+60, 12, 25);
-            if(this.gear5) { ctx.strokeRect(px+5, py+60, 12, 25); ctx.strokeRect(px+23, py+60, 12, 25); }
-        }
-
-        // Corpo e Cabeça
-        ctx.fillStyle = shirt; ctx.fillRect(px, py+20, 40, 40);
-        if(this.gear5) ctx.strokeRect(px, py+20, 40, 40);
-        ctx.fillStyle = skin; ctx.fillRect(px+5, py-15, 30, 35);
-        if(this.gear5) {
-            ctx.strokeRect(px+5, py-15, 30, 35);
-            ctx.fillStyle = "#fff"; ctx.beginPath();
-            ctx.arc(px+5, py-18, 14, 0, 7); ctx.arc(px+20, py-28, 20, 0, 7); ctx.arc(px+35, py-18, 14, 0, 7);
-            ctx.fill(); ctx.stroke();
-        } else {
-            ctx.fillStyle = "#fbc02d"; ctx.fillRect(px-5, py-15, 50, 8);
-        }
-
-        // Soco (Pistol / Red Hawk)
-        if (this.attacking && (this.attackType === 'pistol' || this.attackType === 'redhawk')) {
-            let reach = this.timer * 35;
-            ctx.fillStyle = (this.attackType === 'redhawk') ? "#ff5722" : skin;
-            if(this.gear5 && this.attackType === 'redhawk') ctx.fillStyle = "#fff";
-            ctx.fillRect(px+35, py+25, reach, 20);
-            if(this.gear5) ctx.strokeRect(px+35, py+25, reach, 20);
-            ctx.fillStyle = "#000"; ctx.fillRect(px+35+reach, py+15, 35, 40);
-        }
+        // --- DESENHAR A IMAGEM NA TELA ---
+        // ctx.drawImage(imagem, sx, sy, sw, sh, dx, dy, dw, dh)
+        ctx.drawImage(
+            imgLuffy,
+            this.frame * sInfo.sw, // Corta a imagem na horizontal (frame)
+            state.row * sInfo.sh,  // Corta a imagem na vertical (linha do estado)
+            sInfo.sw, sInfo.sh,    // Tamanho do corte
+            this.x - 30, this.y - 15, // Posição na tela
+            sInfo.dw, sInfo.dh     // Tamanho na tela
+        );
         ctx.restore();
     },
 
     update() {
-        if(this.transforming){ 
-            this.timer++; if(this.timer > 50){ this.transforming=false; this.gear5=true; this.speed=14; this.timer=0; }
-            return;
-        }
+        // Define o estado de animação
+        if (this.attacking) this.state = 'punch';
+        else if (this.jumping) this.state = 'idle'; // Pode mudar pra um frame de pulo
+        else if (Math.abs(this.vx) > 0.1) this.state = 'run';
+        else this.state = 'idle';
 
         if (keys['a'] || keys['A']) this.vx = -this.speed;
         else if (keys['d'] || keys['D']) this.vx = this.speed;
@@ -129,26 +137,12 @@ const player = {
         else { this.vy = 0; this.y = canvas.height - groundHeight - 85; this.jumping = false; }
 
         if (this.attacking) {
-            this.timer++;
-            this.checkHit();
-            if (this.timer > (this.attackType === 'stomp' ? 30 : 15)) { this.attacking = false; this.timer = 0; }
-        }
-        document.getElementById("p-hp").style.width = this.hp + "%";
-    },
-
-    checkHit() {
-        let hitX = this.x + 40;
-        let reach = this.timer * 40;
-        
-        if (this.attackType === 'stomp' && this.timer === 15) {
-            shake = 30;
-            if (Math.abs(this.x - enemy.x) < 150) enemy.takeDamage(15);
-        } else if (this.attackType !== 'stomp') {
-            if (hitX + reach > enemy.x && hitX < enemy.x + enemy.w && Math.abs(this.y - enemy.y) < 60) {
-                enemy.takeDamage(this.gear5 ? 3 : 1.5);
-                shake = 5;
+            // Lógica simples de dano (precisa ajustar com o frame do soco)
+            if (this.frame === 2 && Math.abs(this.x - enemy.x) < 80) {
+                enemy.takeDamage(10); shake = 5;
             }
         }
+        document.getElementById("p-hp").style.width = this.hp + "%";
     }
 };
 
@@ -159,10 +153,8 @@ const enemy = {
     draw() {
         ctx.save();
         if (this.hitback > 0) { ctx.translate(this.hitback, 0); ctx.globalAlpha = 0.6; this.hitback *= 0.8; }
-        ctx.fillStyle = "white"; ctx.fillRect(this.x, this.y+20, 45, 45);
-        ctx.fillStyle = "#1a237e"; ctx.fillRect(this.x, this.y+65, 45, 20);
-        ctx.fillStyle = "#f5c1a4"; ctx.fillRect(this.x+7, this.y-10, 30, 30);
-        if (this.attacking) { ctx.fillStyle = "#f5c1a4"; ctx.fillRect(this.x - 30, this.y + 30, 35, 15); }
+        // Desenha o inimigo (Sprite genérico)
+        ctx.drawImage(imgEnemy, 0, 0, 64, 64, this.x, this.y-10, 80, 100);
         ctx.restore();
     },
 
@@ -171,7 +163,7 @@ const enemy = {
         
         let dist = player.x - this.x;
         if (Math.abs(dist) > 60) this.x += dist > 0 ? this.speed : -this.speed;
-        else if (!this.attacking && Math.random() > 0.9) { this.attacking = true; this.timer = 0; }
+        else if (!this.attacking && Math.random() > 0.98) { this.attacking = true; this.timer = 0; }
 
         if (this.attacking) {
             this.timer++;
@@ -193,15 +185,8 @@ const enemy = {
 
 window.addEventListener("keydown", (e) => {
     keys[e.key] = true;
-    if (player.attacking || player.transforming) return;
-
-    if (e.key.toLowerCase() === 'f') { player.attacking = true; player.attackType = 'pistol'; }
-    if (e.key.toLowerCase() === 'r') { player.attacking = true; player.attackType = 'gatling'; }
-    if (e.key.toLowerCase() === 'e') { player.attacking = true; player.attackType = 'redhawk'; }
-    if (e.key.toLowerCase() === 'q' && player.gear5) { player.attacking = true; player.attackType = 'stomp'; }
-    
-    if (e.key === '1') { player.gear2 = !player.gear2; player.gear5 = false; player.speed = player.gear2 ? 11 : 7; }
-    if (e.key === '2' && !player.gear5) { player.transforming = true; player.timer = 0; player.gear2 = false; }
+    if (player.attacking) return;
+    if (e.key.toLowerCase() === 'f') { player.attacking = true; player.timer = 0; player.frame = 0; }
 });
 window.addEventListener("keyup", (e) => keys[e.key] = false);
 
@@ -214,7 +199,7 @@ function loop() {
     
     requestAnimationFrame(loop);
 }
-loop();
+// O loop só começa dentro da função imageLoaded()
 </script>
 </body>
 </html>

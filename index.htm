@@ -3,22 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Luffy Nika: Gigant Stomp</title>
+    <title>Luffy Nika vs Marinha</title>
     <style>
         body { margin: 0; background: #111; overflow: hidden; font-family: sans-serif; touch-action: none; }
         canvas { display: block; background: #87CEEB; }
-        #ui { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; pointer-events: none; border: 2px solid #ffeb3b; }
-        b { color: #ffeb3b; }
+        #ui { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; pointer-events: none; border: 2px solid #ffeb3b; z-index: 10; }
+        .hud { position: fixed; top: 10px; right: 10px; width: 200px; }
+        .hp-bar { width: 100%; height: 20px; background: #555; border: 2px solid white; margin-bottom: 5px; position: relative; }
+        .hp-fill { height: 100%; background: #4CAF50; transition: width 0.2s; }
+        .label { font-size: 12px; color: white; font-weight: bold; text-transform: uppercase; }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    <div class="controles-info">
-        <b>W A S D</b>: Mover | <b>F, R, E</b>: Golpes<br>
-        <b>Q</b>: <b style="color:#ffeb3b">GOMU GOMU NO GIGANT STOMP</b><br>
-        <b>1</b>: G2 | <b>2</b>: <b>GEAR 5 (NIKA)</b>
-    </div>
+    <b>W A S D</b>: Mover | <b>F, Q</b>: Ataques<br>
+    <b>1</b>: Gear 2 | <b>2</b>: <b>Gear 5</b>
+</div>
+
+<div class="hud">
+    <div class="label">Luffy (Você)</div>
+    <div class="hp-bar"><div id="playerHp" class="hp-fill" style="width: 100%;"></div></div>
+    <div class="label">Marinheiro (Inimigo)</div>
+    <div class="hp-bar"><div id="enemyHp" class="hp-fill" style="width: 100%; background: #f44336;"></div></div>
 </div>
 
 <canvas id="game"></canvas>
@@ -34,186 +41,156 @@ const groundHeight = 60;
 const keys = {};
 let shake = 0;
 
+// Configurações do Jogador
 const player = {
-    x: 150, y: 0, w: 40, h: 60,
-    vx: 0, vy: 0, speed: 7,
+    x: 100, y: 0, w: 40, h: 60,
+    vx: 0, vy: 0, speed: 7, hp: 100,
     jumping: false, attacking: false, attackType: '',
-    timer: 0, gear2: false, gear5: false,
-    transforming: false, transformTimer: 0,
-    groundEffect: { active: false, x: 0, timer: 0 },
-    particles: [],
+    timer: 0, gear2: false, gear5: false, transforming: false, transformTimer: 0,
+    hit: false,
 
     draw() {
         ctx.save();
-        if (shake > 0) {
-            ctx.translate(Math.random() * shake - shake/2, Math.random() * shake - shake/2);
-            shake *= 0.85;
-        }
-
-        const px = this.x;
-        const py = this.y;
+        if (shake > 0) { ctx.translate(Math.random()*shake-shake/2, Math.random()*shake-shake/2); shake *= 0.8; }
         
-        let skin = this.gear5 ? "#ffffff" : (this.gear2 ? "#ff8a80" : "#f5c1a4");
-        let shirt = this.gear5 ? "#ffffff" : (this.gear2 ? "#b71c1c" : "#d32f2f");
-        let shorts = this.gear5 ? "#ffffff" : "#283593";
-        let stroke = this.gear5 ? "#000000" : "transparent"; // Contorno só pro G5
+        const px = this.x; const py = this.y;
+        let skin = this.gear5 ? "#fff" : (this.gear2 ? "#ff8a80" : "#f5c1a4");
+        let shirt = this.gear5 ? "#fff" : (this.gear2 ? "#b71c1c" : "#d32f2f");
+        
+        if (this.transforming) ctx.translate(Math.random()*5, Math.random()*5);
 
-        ctx.strokeStyle = stroke;
-        ctx.lineWidth = 3;
+        // Desenho básico Luffy
+        ctx.lineWidth = this.gear5 ? 3 : 1;
+        ctx.strokeStyle = this.gear5 ? "#000" : "transparent";
 
-        // --- ANIMAÇÃO DEITAR (TRANSFORMANDO) ---
-        if (this.transforming) {
-            ctx.translate(px + 20, py + 40);
-            ctx.rotate(Math.PI / 2);
-            ctx.translate(Math.random()*5, Math.random()*5);
-            ctx.translate(-(px + 20), -(py + 40));
-        }
+        // Pernas
+        ctx.fillStyle = this.gear5 ? "#fff" : "#283593";
+        ctx.fillRect(px+5, py+60, 12, 25); ctx.fillRect(px+23, py+60, 12, 25);
+        if(this.gear5) { ctx.strokeRect(px+5, py+60, 12, 25); ctx.strokeRect(px+23, py+60, 12, 25); }
 
-        // --- PERNAS E ATAQUE "Q" (GIGANT STOMP) ---
-        ctx.fillStyle = shorts;
-        if (this.attacking && this.attackType === 'stomp') {
-            // Perna esticando até o céu (fora da tela)
-            let legY = this.timer < 12 ? this.timer * 80 : 1000 - (this.timer * 40);
-            ctx.fillRect(px + 5, py + 60 - legY, 50, 1500); // Perna infinita
-            if(this.gear5) ctx.strokeRect(px + 5, py + 60 - legY, 50, 1500);
-            
-            // Pé Gigante no final da perna
-            ctx.fillStyle = skin;
-            ctx.fillRect(px - 10, py + 1500 + 60 - legY, 80, 50);
-            if(this.gear5) ctx.strokeRect(px - 10, py + 1500 + 60 - legY, 80, 50);
-        } else {
-            ctx.fillRect(px + 5, py + 60, 12, 25); 
-            ctx.fillRect(px + 23, py + 60, 12, 25);
-            if(this.gear5) { ctx.strokeRect(px+5, py+60, 12, 25); ctx.strokeRect(px+23, py+60, 12, 25); }
-        }
-
-        // --- TRONCO ---
-        ctx.fillStyle = shirt; 
-        ctx.fillRect(px, py + 20, 40, 40);
+        // Tronco e Cabeça
+        ctx.fillStyle = shirt; ctx.fillRect(px, py+20, 40, 40);
         if(this.gear5) ctx.strokeRect(px, py+20, 40, 40);
-
-        // --- CABEÇA ---
-        ctx.fillStyle = skin; 
-        ctx.fillRect(px + 5, py - 15, 30, 35);
+        ctx.fillStyle = skin; ctx.fillRect(px+5, py-15, 30, 35);
         if(this.gear5) ctx.strokeRect(px+5, py-15, 30, 35);
-        
-        if (this.gear5) {
-            // Cabelo de Nuvem com Contorno
-            ctx.fillStyle = "#fff";
-            ctx.beginPath();
-            ctx.arc(px + 5, py - 18, 14, 0, Math.PI*2);
-            ctx.arc(px + 20, py - 28, 20, 0, Math.PI*2);
-            ctx.arc(px + 35, py - 18, 14, 0, Math.PI*2);
-            ctx.fill(); ctx.stroke();
-            this.drawLightning();
-        } else {
-            ctx.fillStyle = "#fbc02d"; ctx.fillRect(px - 5, py - 15, 50, 8);
-            ctx.fillStyle = "#d32f2f"; ctx.fillRect(px + 5, py - 20, 30, 5);
-        }
 
-        // Braço comum
-        if (this.attacking && this.attackType !== 'stomp') {
+        // Ataque Pistol
+        if (this.attacking && this.attackType === 'pistol') {
+            let reach = this.timer * 30;
             ctx.fillStyle = skin;
-            let reach = this.timer * 35;
-            ctx.fillRect(px + 35, py + 30, reach, 18);
-            if(this.gear5) ctx.strokeRect(px + 35, py + 30, reach, 18);
-            ctx.fillStyle = "#000"; ctx.fillRect(px + 35 + reach, py + 20, 35, 40);
+            ctx.fillRect(px+35, py+30, reach, 15);
+            if(this.gear5) ctx.strokeRect(px+35, py+30, reach, 15);
+            ctx.fillStyle = "#000"; ctx.fillRect(px+35+reach, py+20, 30, 35);
         }
-
         ctx.restore();
-        this.drawGroundEffects();
-    },
-
-    drawLightning() {
-        ctx.strokeStyle = "black"; ctx.lineWidth = 2;
-        for(let i=0; i<3; i++) {
-            ctx.beginPath();
-            let rx = this.x + Math.random()*120 - 40;
-            let ry = this.y + Math.random()*120 - 40;
-            ctx.moveTo(rx, ry); ctx.lineTo(rx + 8, ry + 12); ctx.stroke();
-        }
-    },
-
-    drawGroundEffects() {
-        if (this.groundEffect.active) {
-            ctx.fillStyle = "rgba(0,0,0,0.4)";
-            ctx.beginPath();
-            ctx.ellipse(this.groundEffect.x + 20, canvas.height - groundHeight, 100, 30, 0, 0, Math.PI * 2);
-            ctx.fill();
-            this.groundEffect.timer++;
-            if (this.groundEffect.timer > 30) this.groundEffect.active = false;
-        }
-        this.particles.forEach((p, i) => {
-            p.x += p.vx; p.y += p.vy; p.vy += 0.6;
-            ctx.fillStyle = p.c;
-            ctx.fillRect(p.x, p.y, p.s, p.s);
-            if (p.y > canvas.height) this.particles.splice(i, 1);
-        });
     },
 
     update() {
-        if (this.transforming) {
-            this.transformTimer++;
-            if (this.transformTimer > 60) { this.transforming = false; this.gear5 = true; this.speed = 15; }
+        if(this.transforming){ 
+            this.transformTimer++; 
+            if(this.transformTimer > 50){ this.transforming=false; this.gear5=true; this.speed=14; }
             return;
         }
-
+        
         if (keys['a'] || keys['A']) this.vx = -this.speed;
         else if (keys['d'] || keys['D']) this.vx = this.speed;
         else this.vx = 0;
 
-        if ((keys['w'] || keys['W']) && !this.jumping) { this.vy = this.gear5 ? -24 : -17; this.jumping = true; }
-
+        if ((keys['w'] || keys['W']) && !this.jumping) { this.vy = -17; this.jumping = true; }
+        
         this.x += this.vx; this.y += this.vy;
+        if (this.y + 85 < canvas.height - groundHeight) this.vy += gravity;
+        else { this.vy = 0; this.y = canvas.height - groundHeight - 85; this.jumping = false; }
 
-        if (this.y + this.h + 25 < canvas.height - groundHeight) {
-            this.vy += gravity;
+        if (this.attacking) {
+            this.timer++;
+            // Lógica de Dano no Inimigo
+            let reach = this.timer * 30;
+            if (this.x + reach + 40 > enemy.x && this.x < enemy.x + enemy.w && Math.abs(this.y - enemy.y) < 50) {
+                enemy.takeDamage(this.gear5 ? 2 : 1);
+            }
+            if (this.timer > 15) { this.attacking = false; this.timer = 0; }
+        }
+        document.getElementById("playerHp").style.width = this.hp + "%";
+    }
+};
+
+// Configurações do Inimigo (Marinheiro)
+const enemy = {
+    x: canvas.width - 200, y: 0, w: 45, h: 70, vx: 0, vy: 0,
+    hp: 100, speed: 3, attacking: false, timer: 0,
+    hitback: 0,
+
+    draw() {
+        ctx.save();
+        if (this.hitback > 0) { ctx.globalAlpha = 0.5; ctx.translate(this.hitback, 0); }
+        
+        // Desenho Marinheiro
+        ctx.fillStyle = "white"; ctx.fillRect(this.x, this.y+20, 45, 45); // Camisa
+        ctx.fillStyle = "#1a237e"; ctx.fillRect(this.x, this.y+65, 45, 20); // Calça
+        ctx.fillStyle = "#f5c1a4"; ctx.fillRect(this.x+7, this.y-10, 30, 30); // Rosto
+        ctx.fillStyle = "white"; ctx.fillRect(this.x+2, this.y-15, 40, 10); // Quepe
+
+        if (this.attacking) {
+            ctx.fillStyle = "#f5c1a4";
+            ctx.fillRect(this.x - 30, this.y + 30, 35, 15); // Soco do inimigo
+        }
+        ctx.restore();
+    },
+
+    update() {
+        if (this.hp <= 0) { this.x = -500; setTimeout(() => {this.hp=100; this.x=canvas.width;}, 3000); return; }
+
+        // IA Simples: Seguir o jogador
+        let diff = player.x - this.x;
+        if (Math.abs(diff) > 50) {
+            this.x += diff > 0 ? this.speed : -this.speed;
         } else {
-            this.vy = 0;
-            this.y = canvas.height - groundHeight - this.h - 25;
-            this.jumping = false;
+            // Atacar se estiver perto
+            if (Math.random() > 0.95 && !this.attacking) {
+                this.attacking = true;
+                this.timer = 0;
+            }
         }
 
         if (this.attacking) {
             this.timer++;
-            // Momento do Impacto (O pé volta do céu no frame 18)
-            if (this.attackType === 'stomp' && this.timer === 18) {
-                shake = 35;
-                this.groundEffect = { active: true, x: this.x, timer: 0 };
-                for(let i=0; i<25; i++) {
-                    this.particles.push({
-                        x: this.x + 20, y: canvas.height - groundHeight,
-                        vx: Math.random() * 20 - 10, vy: -Math.random() * 20,
-                        s: Math.random() * 10 + 5, c: Math.random() > 0.5 ? "#5d4037" : "#ffffff"
-                    });
-                }
+            if (this.timer === 10 && Math.abs(player.x - this.x) < 60) {
+                player.hp -= 5;
+                shake = 10;
             }
-            if (this.timer > 35) { this.attacking = false; this.timer = 0; }
+            if (this.timer > 20) { this.attacking = false; }
         }
+
+        if (this.hitback > 0) this.hitback -= 1;
+
+        if (this.y + 85 < canvas.height - groundHeight) this.vy += gravity;
+        else { this.vy = 0; this.y = canvas.height - groundHeight - 85; }
+        this.y += this.vy;
+
+        document.getElementById("enemyHp").style.width = this.hp + "%";
     },
 
-    attack(type) {
-        if (!this.attacking && !this.transforming) {
-            if (type === 'stomp' && !this.gear5) return;
-            this.attackType = type; this.attacking = true; this.timer = 0;
-        }
+    takeDamage(dmg) {
+        this.hp -= dmg;
+        this.hitback = player.x < this.x ? 15 : -15; // Afastadinha
     }
 };
 
 window.addEventListener("keydown", (e) => {
     keys[e.key] = true;
-    if (e.key === 'f' || e.key === 'F') player.attack('pistol');
-    if (e.key === 'q' || e.key === 'Q') player.attack('stomp');
-    if (e.key === '1') { player.gear2 = !player.gear2; player.gear5 = false; player.speed = player.gear2 ? 12 : 7; }
-    if (e.key === '2') { if(!player.gear5) { player.transforming = true; player.transformTimer = 0; } else { player.gear5 = false; player.speed = 7; } }
+    if ((e.key === 'f' || e.key === 'F') && !player.attacking) { player.attacking = true; player.attackType = 'pistol'; player.timer = 0; }
+    if (e.key === '2') { player.transforming = true; player.transformTimer = 0; }
 });
-window.addEventListener("keyup", (e) => { keys[e.key] = false; });
+window.addEventListener("keyup", (e) => keys[e.key] = false);
 
 function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#388E3C";
-    ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+    ctx.fillStyle = "#388E3C"; ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+    
     player.update(); player.draw();
+    enemy.update(); enemy.draw();
+    
     requestAnimationFrame(gameLoop);
 }
 gameLoop();

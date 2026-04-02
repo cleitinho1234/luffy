@@ -3,25 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Luffy: Pirate King</title>
+    <title>Luffy: Gear Second</title>
     <style>
         body { margin: 0; background: #111; overflow: hidden; font-family: sans-serif; touch-action: none; }
         canvas { display: block; background: #87CEEB; }
-        #ui { position: fixed; bottom: 20px; width: 100%; display: flex; justify-content: space-around; padding: 0 10px; box-sizing: border-box; }
-        .btn { width: 80px; height: 80px; border-radius: 50%; border: 4px solid #fff; background: rgba(0,0,0,0.7); color: white; font-weight: bold; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; }
-        .btn-attack { background: #d32f2f; }
-        .btn-jump { background: #1976D2; }
+        #ui { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; pointer-events: none; }
+        .controles-info { font-size: 14px; line-height: 1.6; }
+        b { color: #ffeb3b; }
     </style>
 </head>
 <body>
 
-<canvas id="game"></canvas>
-
 <div id="ui">
-    <div class="btn btn-jump" onpointerdown="player.jump()">PULAR</div>
-    <div class="btn btn-attack" onpointerdown="player.attack('pistol')">PISTOL</div>
-    <div class="btn btn-attack" onpointerdown="player.attack('gatling')" style="background: #e65100;">GATLING</div>
+    <div class="controles-info">
+        <b>W A S D</b>: Mover/Pular<br>
+        <b>F</b>: Pistol | <b>R</b>: Gatling | <b>E</b>: Red Hawk<br>
+        <b>1</b>: GEAR SECOND (Ativar/Desativar)
+    </div>
 </div>
+
+<canvas id="game"></canvas>
 
 <script>
 const canvas = document.getElementById("game");
@@ -32,95 +33,127 @@ canvas.height = window.innerHeight;
 
 const gravity = 0.8;
 const groundHeight = 60;
+const keys = {};
 
 const player = {
-    x: 80,
-    y: 0,
-    w: 40,
-    h: 60,
-    dy: 0,
+    x: 100, y: 0, w: 40, h: 60,
+    vx: 0, vy: 0,
+    speed: 7,
     jumping: false,
     attacking: false,
     attackType: '',
     timer: 0,
+    gear2: false,
+    smokeParticles: [],
 
     draw() {
         const px = this.x;
         const py = this.y;
-
-        // --- DESENHANDO O CORPINHO DO LUFFY ---
         
-        // Braço que fica parado (atrás)
-        ctx.fillStyle = "#f5c1a4";
-        ctx.fillRect(px - 10, py + 25, 10, 30);
+        // Efeito de Fumaça (Gear 2)
+        if (this.gear2) {
+            this.drawSmoke();
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = "pink";
+        } else {
+            ctx.shadowBlur = 0;
+        }
+
+        // --- DESENHO DO PERSONAGEM ---
+        const skinColor = this.gear2 ? "#ff8a80" : "#f5c1a4"; // Pele avermelhada no Gear 2
 
         // Pernas
-        ctx.fillStyle = "#283593"; // Short azul
-        ctx.fillRect(px + 5, py + 60, 12, 25); // Perna 1
-        ctx.fillRect(px + 23, py + 60, 12, 25); // Perna 2
+        ctx.fillStyle = "#283593"; 
+        ctx.fillRect(px + 5, py + 60, 12, 25); 
+        ctx.fillRect(px + 23, py + 60, 12, 25); 
 
         // Tronco (Camisa Vermelha)
-        ctx.fillStyle = "#d32f2f";
+        ctx.fillStyle = this.gear2 ? "#b71c1c" : "#d32f2f";
         ctx.fillRect(px, py + 20, 40, 40);
 
         // Cabeça
-        ctx.fillStyle = "#f5c1a4";
+        ctx.fillStyle = skinColor;
         ctx.fillRect(px + 5, py - 15, 30, 35);
 
-        // Chapéu de Palha
+        // Chapéu
         ctx.fillStyle = "#fbc02d";
-        ctx.fillRect(px - 5, py - 15, 50, 8); // Aba
-        ctx.fillStyle = "#d32f2f"; // Faixa vermelha
+        ctx.fillRect(px - 5, py - 15, 50, 8);
+        ctx.fillStyle = "#d32f2f";
         ctx.fillRect(px + 5, py - 20, 30, 5);
 
-        // --- LÓGICA DE ATAQUE (ESTICAR) ---
+        // Braço em repouso ou Ataque
+        ctx.fillStyle = skinColor;
         if (this.attacking) {
-            ctx.fillStyle = "#f5c1a4";
-            if (this.attackType === 'pistol') {
-                let socoX = (this.timer * 25); // O braço vai "crescendo"
-                // Braço esticando
-                ctx.fillRect(px + 30, py + 30, socoX, 12);
-                // Punho no final do braço
+            let reach = this.timer * 30;
+            if (this.attackType === 'pistol' || this.attackType === 'redhawk') {
+                if(this.attackType === 'redhawk') ctx.fillStyle = "#ff5722"; // Fogo
+                ctx.fillRect(px + 30, py + 30, reach, 15); // Braço esticando
                 ctx.fillStyle = "#000";
-                ctx.fillRect(px + 30 + socoX, py + 25, 25, 25);
-            } 
-            else if (this.attackType === 'gatling') {
+                ctx.fillRect(px + 30 + reach, py + 25, 25, 25); // Punho
+            } else if (this.attackType === 'gatling') {
                 for(let i=0; i<8; i++) {
-                    let r = Math.random() * 200;
-                    ctx.fillStyle = "#f5c1a4";
-                    ctx.fillRect(px + 30, py + (i * 8), r, 6);
+                    ctx.fillRect(px + 30, py + (i * 8), Math.random() * 250, 6);
                 }
             }
         } else {
-            // Braço em repouso (quando não está atacando)
-            ctx.fillStyle = "#f5c1a4";
             ctx.fillRect(px + 40, py + 25, 10, 30);
         }
+        ctx.shadowBlur = 0;
+    },
+
+    drawSmoke() {
+        if (Math.random() > 0.7) {
+            this.smokeParticles.push({
+                x: this.x + Math.random() * 40,
+                y: this.y + 40,
+                r: Math.random() * 5 + 2,
+                v: Math.random() * 2 + 1
+            });
+        }
+        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+        this.smokeParticles.forEach((p, i) => {
+            p.y -= p.v;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fill();
+            if (p.y < this.y - 50) this.smokeParticles.splice(i, 1);
+        });
     },
 
     update() {
-        this.y += this.dy;
+        // Movimentação WASD
+        if (keys['a'] || keys['A']) this.vx = -this.speed;
+        else if (keys['d'] || keys['D']) this.vx = this.speed;
+        else this.vx = 0;
+
+        if ((keys['w'] || keys['W']) && !this.jumping) {
+            this.vy = -18;
+            this.jumping = true;
+        }
+
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Gravidade
         if (this.y + this.h + 25 < canvas.height - groundHeight) {
-            this.dy += gravity;
+            this.vy += gravity;
         } else {
-            this.dy = 0;
+            this.vy = 0;
             this.y = canvas.height - groundHeight - this.h - 25;
             this.jumping = false;
         }
 
+        // Limites da tela
+        if (this.x < 0) this.x = 0;
+        if (this.x > canvas.width - this.w) this.x = canvas.width - this.w;
+
+        // Animação Ataque
         if (this.attacking) {
             this.timer++;
-            if (this.timer > 15) {
+            if (this.timer > 12) {
                 this.attacking = false;
                 this.timer = 0;
             }
-        }
-    },
-
-    jump() {
-        if (!this.jumping) {
-            this.dy = -16;
-            this.jumping = true;
         }
     },
 
@@ -130,19 +163,30 @@ const player = {
             this.attacking = true;
             this.timer = 0;
         }
+    },
+
+    toggleGear2() {
+        this.gear2 = !this.gear2;
+        this.speed = this.gear2 ? 12 : 7; // Mais rápido no Gear 2
     }
 };
 
+window.addEventListener("keydown", (e) => {
+    keys[e.key] = true;
+    if (e.key === 'f' || e.key === 'F') player.attack('pistol');
+    if (e.key === 'r' || e.key === 'R') player.attack('gatling');
+    if (e.key === 'e' || e.key === 'E') player.attack('redhawk');
+    if (e.key === '1') player.toggleGear2();
+});
+
+window.addEventListener("keyup", (e) => { keys[e.key] = false; });
+
 function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Chão (Gramado)
     ctx.fillStyle = "#388E3C";
     ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
-
     player.update();
     player.draw();
-
     requestAnimationFrame(gameLoop);
 }
 

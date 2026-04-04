@@ -2,209 +2,45 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Luffy: Pirate King</title>
+    <title>Criar Nova Postagem</title>
     <style>
-        body { margin: 0; background: #111; overflow: hidden; font-family: sans-serif; touch-action: none; }
-        canvas { display: block; background: #87CEEB; }
-        #ui { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; border: 2px solid #ffeb3b; z-index: 10; pointer-events: none; }
-        .hud { position: fixed; top: 10px; right: 10px; width: 250px; text-align: right; }
-        .hp-bar { width: 100%; height: 15px; background: #333; border: 2px solid white; margin: 5px 0; overflow: hidden; }
-        .hp-fill { height: 100%; background: #4CAF50; transition: width 0.1s; }
-        .label { font-size: 14px; color: white; font-weight: bold; text-shadow: 2px 2px black; }
+        body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; }
+        label { display: block; margin-top: 20px; font-weight: bold; }
+        input, textarea, button { width: 100%; padding: 12px; margin-top: 8px; font-size: 16px; }
+        button { background-color: #28a745; color: white; border: none; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<div id="ui">
-    <b>CONTROLES:</b><br>
-    MOVER: <b>W A S D</b><br>
-    ATAQUES: <b>F, R, E, Q</b><br>
-    GEARS: <b>1 (G2) | 2 (G5)</b>
-</div>
+    <main>
+        <h1>Nova Postagem</h1>
 
-<div class="hud">
-    <div class="label">LUFFY (VOCÊ)</div>
-    <div class="hp-bar"><div id="p-hp" class="hp-fill" style="width: 100%;"></div></div>
-    <div class="label" style="color: #f44336;">MARINHEIRO</div>
-    <div class="hp-bar"><div id="e-hp" class="hp-fill" style="width: 100%; background: #f44336;"></div></div>
-</div>
+        <label for="video">1. Escolha o vídeo do seu celular:</label>
+        <input type="file" id="video" accept="video/*" aria-label="Selecionar arquivo de vídeo">
 
-<canvas id="game"></canvas>
+        <label for="desc">2. Descreva o que acontece no vídeo (para o TalkBack ler):</label>
+        <textarea id="desc" rows="4" placeholder="Ex: Eu estou no parque com minha bengala..."></textarea>
 
-<script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+        <button onclick="simularPostagem()" aria-label="Clique aqui para postar no blog">POSTAR NO BLOG</button>
+    </main>
 
-const gravity = 0.8;
-const groundHeight = 60;
-const keys = {};
-let shake = 0;
+    <script>
+        function simularPostagem() {
+            const desc = document.getElementById('desc').value;
+            const video = document.getElementById('video').value;
 
-const player = {
-    x: 150, y: 0, w: 40, h: 80, vx: 0, vy: 0, hp: 100,
-    speed: 7, jumping: false, attacking: false, attackType: '',
-    timer: 0, gear2: false, gear5: false, transforming: false, transformTimer: 0,
-    
-    draw() {
-        ctx.save();
-        if (shake > 0) { ctx.translate(Math.random()*shake-shake/2, Math.random()*shake-shake/2); shake *= 0.8; }
-        
-        const px = this.x; const py = this.y;
-        
-        // Cores Dinâmicas
-        let skin = "#f5c1a4";
-        let vest = "#d32f2f";
-        let shorts = "#283593";
-        let hair = "#222";
-        let hat = "#fbc02d";
-
-        if (this.gear2) { skin = "#ff8a80"; vest = "#b71c1c"; }
-        if (this.gear5) { skin = "#fff"; vest = "#fff"; shorts = "#fff"; hair = "#fff"; }
-
-        if (this.transforming) {
-            ctx.translate(px+20, py+60); ctx.rotate(Math.PI/2); ctx.translate(-(px+20), -(py+60));
-        }
-
-        // --- DESENHO DETALHADO DO LUFFY ---
-        ctx.strokeStyle = "#000";
-        ctx.lineWidth = this.gear5 ? 3 : 2;
-
-        // Pernas
-        ctx.fillStyle = shorts;
-        ctx.fillRect(px+5, py+50, 12, 30); ctx.fillRect(px+23, py+50, 12, 30);
-        ctx.strokeRect(px+5, py+50, 12, 30); ctx.strokeRect(px+23, py+50, 12, 30);
-
-        // Tronco (Colete Aberto)
-        ctx.fillStyle = skin;
-        ctx.fillRect(px, py+10, 40, 45); // Corpo
-        ctx.fillStyle = vest;
-        ctx.fillRect(px, py+10, 12, 45); // Lado esquerdo colete
-        ctx.fillRect(px+28, py+10, 12, 45); // Lado direito colete
-        
-        // Cicatriz em X
-        if(!this.gear5) {
-            ctx.strokeStyle = "rgba(0,0,0,0.3)";
-            ctx.beginPath(); ctx.moveTo(px+15, py+25); ctx.lineTo(px+25, py+35); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(px+25, py+25); ctx.lineTo(px+15, py+35); ctx.stroke();
-        }
-
-        // Cabeça
-        ctx.fillStyle = skin;
-        ctx.fillRect(px+8, py-20, 24, 30);
-        ctx.strokeRect(px+8, py-20, 24, 30);
-
-        // Cabelo e Chapéu
-        if (this.gear5) {
-            ctx.fillStyle = "#fff";
-            ctx.beginPath();
-            ctx.arc(px+5, py-22, 14, 0, 7); ctx.arc(px+20, py-32, 20, 0, 7); ctx.arc(px+35, py-22, 14, 0, 7);
-            ctx.fill(); ctx.stroke();
-        } else {
-            ctx.fillStyle = hair;
-            ctx.fillRect(px+8, py-25, 24, 10); // Cabelo
-            ctx.fillStyle = hat;
-            ctx.fillRect(px-5, py-25, 50, 8); // Aba do chapéu
-            ctx.fillStyle = "#d32f2f";
-            ctx.fillRect(px+8, py-30, 24, 6); // Fita vermelha
-            ctx.fillStyle = hat;
-            ctx.fillRect(px+8, py-35, 24, 6); // Topo do chapéu
-        }
-
-        // Ataques
-        if (this.attacking) {
-            ctx.fillStyle = skin;
-            let reach = this.timer * 30;
-            if(this.attackType === 'stomp') {
-                let legY = this.timer < 10 ? this.timer * 50 : 500 - (this.timer*25);
-                ctx.fillRect(px+5, py+50-legY, 50, 800);
-                ctx.strokeRect(px+5, py+50-legY, 50, 800);
-            } else {
-                ctx.fillRect(px+35, py+20, reach, 20);
-                ctx.strokeRect(px+35, py+20, reach, 20);
-                ctx.fillStyle = "#000"; ctx.fillRect(px+35+reach, py+10, 35, 40);
+            if(!video) {
+                alert("Por favor, selecione um vídeo primeiro!");
+                return;
             }
-        }
-        ctx.restore();
-    },
 
-    update() {
-        if(this.transforming){ 
-            this.transformTimer++; 
-            if(this.transformTimer > 50){ this.transforming=false; this.gear5=true; this.speed=14; }
-            return;
+            // Como o GitHub Pages não salva arquivos sozinho, 
+            // aqui você precisaria de um "Backend" (tipo seu Flask) 
+            // para receber esse vídeo e salvar no servidor.
+            alert("Vídeo selecionado! Agora o sistema enviaria isso para o servidor.");
+            console.log("Descrição para o TalkBack: " + desc);
         }
-        if (keys['a'] || keys['A']) this.vx = -this.speed;
-        else if (keys['d'] || keys['D']) this.vx = this.speed;
-        else this.vx = 0;
-        if ((keys['w'] || keys['W']) && !this.jumping) { this.vy = -18; this.jumping = true; }
-        this.x += this.vx; this.y += this.vy;
-        if (this.y + 85 < canvas.height - groundHeight) this.vy += gravity;
-        else { this.vy = 0; this.y = canvas.height - groundHeight - 85; this.jumping = false; }
-        if (this.attacking) {
-            this.timer++;
-            this.checkHit();
-            if (this.timer > 20) { this.attacking = false; this.timer = 0; }
-        }
-        document.getElementById("p-hp").style.width = this.hp + "%";
-    },
+    </script>
 
-    checkHit() {
-        if (Math.abs(this.x - enemy.x) < (this.timer * 30) + 40 && Math.abs(this.y - enemy.y) < 80) {
-            enemy.takeDamage(this.gear5 ? 2 : 1);
-        }
-    }
-};
-
-const enemy = {
-    x: canvas.width - 200, y: 0, w: 45, h: 80, vx: 0, vy: 0, hp: 100, speed: 3, 
-    attacking: false, timer: 0, hitback: 0,
-    draw() {
-        ctx.save();
-        if (this.hitback > 0) { ctx.translate(this.hitback, 0); this.hitback *= 0.8; }
-        ctx.fillStyle = "#eee"; ctx.fillRect(this.x, this.y, 45, 80); // Uniforme
-        ctx.fillStyle = "#1a237e"; ctx.fillRect(this.x, this.y+60, 45, 20); // Calça
-        ctx.fillStyle = "#f5c1a4"; ctx.fillRect(this.x+10, this.y-10, 25, 25); // Rosto
-        ctx.fillStyle = "#1a237e"; ctx.fillRect(this.x, this.y-15, 45, 10); // Quepe
-        ctx.strokeRect(this.x, this.y, 45, 80);
-        ctx.restore();
-    },
-    update() {
-        let dist = player.x - this.x;
-        if (Math.abs(dist) > 70) this.x += dist > 0 ? this.speed : -this.speed;
-        else if (!this.attacking && Math.random() > 0.95) { this.attacking = true; this.timer = 0; }
-        if (this.attacking) {
-            this.timer++;
-            if (this.timer === 10 && Math.abs(player.x - this.x) < 80) { player.hp -= 5; shake = 15; }
-            if (this.timer > 20) this.attacking = false;
-        }
-        if (this.y + 85 < canvas.height - groundHeight) this.vy += gravity;
-        else { this.vy = 0; this.y = canvas.height - groundHeight - 85; }
-        this.y += this.vy;
-        document.getElementById("e-hp").style.width = this.hp + "%";
-    },
-    takeDamage(dmg) { this.hp -= dmg; this.hitback = player.x < this.x ? 15 : -15; }
-};
-
-window.addEventListener("keydown", (e) => {
-    keys[e.key] = true;
-    if (player.attacking) return;
-    if (e.key === 'f' || e.key === 'F') { player.attacking = true; player.attackType = 'pistol'; player.timer = 0; }
-    if (e.key === 'q' || e.key === 'Q') { if(player.gear5){ player.attacking = true; player.attackType = 'stomp'; player.timer = 0; } }
-    if (e.key === '2') { player.transforming = true; player.transformTimer = 0; }
-});
-window.addEventListener("keyup", (e) => keys[e.key] = false);
-
-function loop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#388E3C"; ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
-    player.update(); player.draw();
-    enemy.update(); enemy.draw();
-    requestAnimationFrame(loop);
-}
-loop();
-</script>
 </body>
 </html>

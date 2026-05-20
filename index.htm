@@ -200,18 +200,77 @@
         #cooldownTimer {
             text-align: center;
             color: #f43f5e;
-            font-size: 0.9rem;
-            margin-top: 10px;
+            font-size: 1rem;
+            margin-top: 15px;
             font-weight: bold;
             display: none;
+            background-color: #1a1e2e;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #f43f5e;
+        }
+
+        /* ================= TELA DO ALERTA DO LUFFY ================= */
+        .luffy-alert-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(15, 23, 42, 0.85); /* Fundo escurecido */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        .luffy-alert-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .luffy-img {
+            width: 280px;
+            height: 280px;
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.6);
+            transform: scale(0.7);
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .luffy-alert-overlay.show .luffy-img {
+            transform: scale(1);
+        }
+
+        .luffy-text {
+            margin-top: 20px;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #22c55e;
+            text-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+            text-align: center;
+            animation: pulseText 1.5s infinite alternate;
+        }
+
+        @keyframes pulseText {
+            from { transform: scale(0.95); opacity: 0.8; }
+            to { transform: scale(1.05); opacity: 1; }
         }
     </style>
 </head>
 <body>
 
+<div id="luffyAlert" class="luffy-alert-overlay">
+    <img src="luffy.png" alt="Luffy Positivo" class="luffy-img">
+    <div class="luffy-text">MENSAGEM POSITIVA! 🟢</div>
+</div>
+
 <div class="container">
 
-    <!-- BARRA DE TOPO LOGADO -->
     <div id="userBar" class="user-bar" style="display: none;">
         <div>Logado como: <strong id="loggedName" style="color: #38bdf8;"></strong></div>
         <div style="display: flex; gap: 10px; align-items: center;">
@@ -220,7 +279,6 @@
         </div>
     </div>
 
-    <!-- ================= TELA DE LOGIN ================= -->
     <div id="loginScreen">
         <h1>Identifique-se</h1>
         <p class="subtitle">Faça login para poder enviar suas mensagens e doações.</p>
@@ -233,12 +291,10 @@
         </form>
     </div>
 
-    <!-- ================= CONTEÚDO PRINCIPAL (DOAÇÃO) ================= -->
     <div id="mainContent">
         <h1>Mande sua Energia & Conteúdo</h1>
         <p class="subtitle">Escolha como você quer interagir ou apoiar o canal abaixo!</p>
 
-        <!-- 1. DOAÇÃO DE DINHEIRO -->
         <div class="section-card">
             <h2>💰 Doação de Dinheiro</h2>
             <p style="font-size: 0.9rem; color: #cbd5e1; margin-bottom: 15px;">
@@ -248,7 +304,6 @@
         </div>
 
         <form id="donationForm">
-            <!-- 2. MENSAGENS -->
             <div class="section-card">
                 <h2>💬 Mensagens Positivas ou Negativas</h2>
                 <label>Qual a vibe da sua mensagem?</label>
@@ -264,7 +319,6 @@
                 <textarea id="texto_mensagem" rows="2" placeholder="Escreva aqui..."></textarea>
             </div>
 
-            <!-- 3. MÚSICA & ÁUDIO -->
             <div class="section-card">
                 <h2>🎵 Doação de Música ou Áudio</h2>
                 <label for="link_musica">Link da Música (YouTube/Spotify):</label>
@@ -276,7 +330,6 @@
                 </div>
             </div>
 
-            <!-- 4. IDEIAS -->
             <div class="section-card">
                 <h2>💡 Ideias de Conteúdo</h2>
                 <label for="ideia_conteudo">O que você quer ver nos próximos vídeos ou lives?</label>
@@ -288,7 +341,6 @@
         </form>
     </div>
 
-    <!-- ================= PAINEL DO DONO (ADMIN) ================= -->
     <div id="adminPanel">
         <h1>👑 Painel de Controle (luffysdrk)</h1>
         <p class="subtitle">Veja abaixo todas as interações e doações enviadas pelos usuários</p>
@@ -316,6 +368,7 @@
     const adminBtn = document.getElementById('adminBtn');
     const submitBtn = document.getElementById('submitBtn');
     const cooldownTimer = document.getElementById('cooldownTimer');
+    const luffyAlert = document.getElementById('luffyAlert');
 
     let cooldownInterval;
 
@@ -328,6 +381,24 @@
             loginScreen.style.display = 'block';
         }
     });
+
+    // DISPARAR ALERTA ASSIM QUE SELECIONAR A OPÇÃO "POSITIVA"
+    document.querySelectorAll('input[name="vibe_mensagem"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'positiva') {
+                mostrarAlertaLuffy();
+            }
+        });
+    });
+
+    function mostrarAlertaLuffy() {
+        luffyAlert.classList.add('show');
+        
+        // Mantém na tela por 4 segundos e depois some tudo junto suavemente
+        setTimeout(() => {
+            luffyAlert.classList.remove('show');
+        }, 4000);
+    }
 
     document.getElementById('loginForm').addEventListener('submit', (e) => {
         e.preventDefault();
@@ -355,12 +426,11 @@
 
     function fazerLogout() {
         localStorage.removeItem('usuario_doacao');
+        localStorage.removeItem('cooldown_doacao');
         window.location.reload();
     }
 
-    // LÓGICA DE CONTROLE DO COOLDOWN (3 MINUTOS)
     function verificarCooldown() {
-        // O dono luffysdrk dono não tem tempo de espera para testar livremente
         const usuarioAtual = localStorage.getItem('usuario_doacao');
         if (usuarioAtual && usuarioAtual.trim().toLowerCase() === 'luffysdrk dono') {
             return;
@@ -395,17 +465,33 @@
             } else {
                 const minutos = Math.floor(restante / 60000);
                 const segundos = Math.floor((restante % 60000) / 1000);
-                cooldownTimer.textContent = `Aguarde ${minutos}m ${segundos}s para mandar a próxima interação.`;
+                
+                const minStr = minutos < 10 ? '0' + minutos : minutos;
+                const segStr = segundos < 10 ? '0' + segundos : segundos;
+                
+                cooldownTimer.textContent = `⏳ Aguarde ${minStr}:${segStr} para enviar outra interação.`;
             }
         }, 1000);
     }
 
-    // FORMULÁRIO ENVIANDO E APLICANDO O COOLDOWN
     document.getElementById('donationForm').addEventListener('submit', function(e) {
         e.preventDefault();
+        if (submitBtn.disabled) return;
         
         const usuario = localStorage.getItem('usuario_doacao');
         const vibe = document.querySelector('input[name="vibe_mensagem"]:checked').value;
+
+        // Se o usuário enviar o formulário e a vibe for positiva, exibe o alerta também no envio
+        if (vibe === 'positiva') {
+            mostrarAlertaLuffy();
+        }
+        
+        if (usuario.trim().toLowerCase() !== 'luffysdrk dono') {
+            submitBtn.disabled = true;
+            const tempoBloqueio = Date.now() + (3 * 60 * 1000);
+            localStorage.setItem('cooldown_doacao', tempoBloqueio);
+        }
+
         const mensagem = document.getElementById('texto_mensagem').value.trim();
         const musica = document.getElementById('link_musica').value.trim();
         const ideia = document.getElementById('ideia_conteudo').value.trim();
@@ -431,10 +517,7 @@
         alert('Sua doação/mensagem foi enviada com sucesso para o painel!');
         this.reset();
 
-        // Aplicar o bloqueio de 3 minutos (3 * 60 * 1000 milissegundos) se não for o Dono
         if (usuario.trim().toLowerCase() !== 'luffysdrk dono') {
-            const tempoBloqueio = Date.now() + (3 * 60 * 1000);
-            localStorage.setItem('cooldown_doacao', tempoBloqueio);
             ativarBotaoCooldown(3 * 60 * 1000);
         }
     });

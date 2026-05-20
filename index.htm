@@ -138,6 +138,12 @@
             background-color: #0ea5e9;
         }
 
+        .btn-submit:disabled {
+            background-color: #475569;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
         .user-bar {
             display: flex;
             justify-content: space-between;
@@ -189,6 +195,15 @@
             border-radius: 6px;
             cursor: pointer;
             margin-bottom: 15px;
+        }
+        
+        #cooldownTimer {
+            text-align: center;
+            color: #f43f5e;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            font-weight: bold;
+            display: none;
         }
     </style>
 </head>
@@ -268,7 +283,8 @@
                 <textarea id="ideia_conteudo" rows="2" placeholder="Mande sua sugestão..."></textarea>
             </div>
 
-            <button type="submit" class="btn-submit">Enviar Interação</button>
+            <button type="submit" id="submitBtn" class="btn-submit">Enviar Interação</button>
+            <div id="cooldownTimer"></div>
         </form>
     </div>
 
@@ -298,11 +314,16 @@
     const userBar = document.getElementById('userBar');
     const loggedName = document.getElementById('loggedName');
     const adminBtn = document.getElementById('adminBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    const cooldownTimer = document.getElementById('cooldownTimer');
+
+    let cooldownInterval;
 
     window.addEventListener('DOMContentLoaded', () => {
         const savedUser = localStorage.getItem('usuario_doacao');
         if (savedUser) {
             liberarSite(savedUser);
+            verificarCooldown();
         } else {
             loginScreen.style.display = 'block';
         }
@@ -314,6 +335,7 @@
         if (username) {
             localStorage.setItem('usuario_doacao', username);
             liberarSite(username);
+            verificarCooldown();
         }
     });
 
@@ -324,7 +346,6 @@
         userBar.style.display = 'flex';
         loggedName.textContent = nomeUsuario;
 
-        // VALIDAÇÃO COM O SEU NOME CHAVE EXATO
         if (nomeUsuario.trim().toLowerCase() === 'luffysdrk dono') {
             adminBtn.style.display = 'block';
         } else {
@@ -337,6 +358,49 @@
         window.location.reload();
     }
 
+    // LÓGICA DE CONTROLE DO COOLDOWN (3 MINUTOS)
+    function verificarCooldown() {
+        // O dono luffysdrk dono não tem tempo de espera para testar livremente
+        const usuarioAtual = localStorage.getItem('usuario_doacao');
+        if (usuarioAtual && usuarioAtual.trim().toLowerCase() === 'luffysdrk dono') {
+            return;
+        }
+
+        const proximoEnvioDisponivel = localStorage.getItem('cooldown_doacao');
+        if (!proximoEnvioDisponivel) return;
+
+        const tempoRestante = proximoEnvioDisponivel - Date.now();
+
+        if (tempoRestante > 0) {
+            ativarBotaoCooldown(tempoRestante);
+        } else {
+            localStorage.removeItem('cooldown_doacao');
+        }
+    }
+
+    function ativarBotaoCooldown(tempoMs) {
+        submitBtn.disabled = true;
+        cooldownTimer.style.display = 'block';
+
+        clearInterval(cooldownInterval);
+        
+        cooldownInterval = setInterval(() => {
+            const restante = localStorage.getItem('cooldown_doacao') - Date.now();
+            
+            if (restante <= 0) {
+                clearInterval(cooldownInterval);
+                submitBtn.disabled = false;
+                cooldownTimer.style.display = 'none';
+                localStorage.removeItem('cooldown_doacao');
+            } else {
+                const minutos = Math.floor(restante / 60000);
+                const segundos = Math.floor((restante % 60000) / 1000);
+                cooldownTimer.textContent = `Aguarde ${minutos}m ${segundos}s para mandar a próxima interação.`;
+            }
+        }, 1000);
+    }
+
+    // FORMULÁRIO ENVIANDO E APLICANDO O COOLDOWN
     document.getElementById('donationForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -366,6 +430,13 @@
 
         alert('Sua doação/mensagem foi enviada com sucesso para o painel!');
         this.reset();
+
+        // Aplicar o bloqueio de 3 minutos (3 * 60 * 1000 milissegundos) se não for o Dono
+        if (usuario.trim().toLowerCase() !== 'luffysdrk dono') {
+            const tempoBloqueio = Date.now() + (3 * 60 * 1000);
+            localStorage.setItem('cooldown_doacao', tempoBloqueio);
+            ativarBotaoCooldown(3 * 60 * 1000);
+        }
     });
 
     function abrirPainel() {
